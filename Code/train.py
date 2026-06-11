@@ -8,9 +8,9 @@ import json
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from Code.data import get_loaders
-import Code.models as models
-from Code.fit import Trainer
+from data import get_loaders
+import models
+from fit import Trainer
 
 def main():   
     with open("config.json", "r") as f:
