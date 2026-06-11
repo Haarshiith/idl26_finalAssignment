@@ -1,10 +1,7 @@
-# BioHealth Diagnostics Global - Pipeline Audit Log
+# Technical Audit Log: Pipeline Reconstruction
 
-This log documents the systematic recovery of the clinical triage ML pipeline.
+This document itemizes all critical failures discovered in the BioHealth Diagnostics Global machine learning pipeline, documenting the root causes and applied mathematical/structural corrections.
 
-| Bug ID | File Name | Manifestation | Root Cause | Structural Correction | Git Commit Hash |
+| Issue ID | File Name | Manifestation (The Error) | Mathematical / Logical Root Cause | Implemented Structural Correction | Git Commit Hash |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| 001 | N/A | Corrupted project environment | Inconsistent Python version and missing dependencies | Initialized project using THWS template and Python 3.11 environment | [Pending] |
-| 002 | `train.py` | `FileNotFoundError` | Missing `config.json` configuration file | Implemented `config.json` to define hyperparameters and system paths | [Pending] |
-| 003 | `train.py` | `KeyError: 'DATA'` | Dictionary key mismatch between config and loader | Aligned `config.json` keys with `train.py` access logic | [Pending] |
-| 004 | `fit.py` | Gradient explosion / `NaN` loss | Misplaced `optimizer.zero_grad()` in the training loop | Reordered loop to ensure Zero -> Forward -> Backward -> Step sequence | [Pending] |
+| 001 | `data.py` | Validation accuracy is artificially high and untrustworthy. | The training array (`data_dict['train_images']`) was never truncated after extracting the validation split, causing 100% of the validation set to leak into the training environment. | Applied list slicing `[:val_start]` to explicitly isolate the training bounds from the validation boundaries. | 54844ed |
