@@ -54,25 +54,23 @@ def main():
     trainer_src = Trainer(model, criterion, optimizer_src, device)
     trainer_src.fit(train_loader_src, val_loader_src, epochs=5) # 5 epochs to learn features
 
-    # 2. Freeze the feature extractor
-    print("\n--- PHASE 2: Freezing features & transferring to 'orgs' ---")
-    for param in model.parameters():
-        param.requires_grad = False
-        
-    # Unfreeze ONLY the final classifier layer
-    for param in model.classifier.parameters():
-        param.requires_grad = True
-
+    # 2. Prepare for Full-Network Fine-Tuning
+    print("\n--- PHASE 2: Adapting architecture for 'orgs' ---")
+    
+    # We DO NOT freeze the parameters. We let the whole network adapt.
+    # We just give it a fresh classifier for the new dataset.
     model.classifier = nn.Linear(128, config["NUM_CLASSES"]).to(device)
 
-    # 3. Fine-tune on the small 'organs' dataset
+    # 3. Fine-tune on the 'organs' dataset
     train_loader_tgt, val_loader_tgt, test_loader_tgt = get_loaders(data="organs", data_path=config["DATA_PATH"], batch_size=config["BATCH_SIZE"])
     
-    # Use a smaller learning rate so we don't destroy the transferred knowledge
-    optimizer_tgt = optim.Adam(model.classifier.parameters(), lr=config["LEARNING_RATE"] * 0.1)
+    # --- THE FIX: Optimize the ENTIRE network, but use a decayed learning rate (0.5x) ---
+    # This gently shifts the learned weights without aggressively destroying them.
+    optimizer_tgt = optim.Adam(model.parameters(), lr=config["LEARNING_RATE"] * 0.5)
     
+    # Train for 20 epochs to ensure full convergence
     trainer_tgt = Trainer(model, criterion, optimizer_tgt, device)
-    trainer_tgt.fit(train_loader_tgt, val_loader_tgt, epochs=config["EPOCHS"])
+    trainer_tgt.fit(train_loader_tgt, val_loader_tgt, epochs=20)
 
     # 4. Generate Final Metrics for the Report
     evaluate_test_set(model, test_loader_tgt, device)
