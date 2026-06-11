@@ -177,3 +177,35 @@ class ResNet18(nn.Module):
         out = torch.flatten(out, 1)
         
         return self.classifier(out)
+
+class EcoResNet(nn.Module):
+    """Downscaled ResNet for the Green Initiative. Drastically reduced parameters."""
+    def __init__(self, in_channels, num_classes, **kwargs):
+        super().__init__()
+
+        act_str = kwargs.get("activation_str", "ReLU")
+        activation = getattr(nn, act_str)
+
+        # Start with 16 channels instead of 64
+        self.conv1 = nn.Conv2d(in_channels, 16, kernel_size=3, stride=1, padding=1, bias=False)
+        self.bn1 = nn.BatchNorm2d(16)
+        self.activation = activation(inplace=True)
+        
+        # 1 block per stage (halved depth), shrinking channels (75% fewer filters)
+        self.stage1 = ResBlock(16, 16, activation(inplace=True), stride=1)
+        self.stage2 = ResBlock(16, 32, activation(inplace=True), stride=2)
+        self.stage3 = ResBlock(32, 64, activation(inplace=True), stride=2)
+        self.stage4 = ResBlock(64, 128, activation(inplace=True), stride=2)
+        
+        self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
+        self.classifier = nn.Linear(128, num_classes)
+
+    def forward(self, x):
+        out = self.activation(self.bn1(self.conv1(x)))
+        out = self.stage1(out)
+        out = self.stage2(out)
+        out = self.stage3(out)
+        out = self.stage4(out)
+        out = self.avgpool(out)
+        out = torch.flatten(out, 1)
+        return self.classifier(out)
