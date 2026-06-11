@@ -78,11 +78,17 @@ class Trainer:
         if torch.cuda.is_available():
             torch.cuda.reset_peak_memory_stats(self.device)
             
-        start_time = time.time()      
+        start_time = time.time()  
+
+        best_val_acc = 0.0    
 
         for epoch in range(epochs):
             train_loss, train_acc = self.train_one_epoch(train_loader)
             val_loss, val_acc, val_latency = self.evaluate(val_loader)
+
+            if val_acc > best_val_acc:
+                best_val_acc = val_acc
+                torch.save(self.model.state_dict(), "best_model.pth")
             
             print(f"Epoch [{epoch+1:02d}/{epochs:02d}] | "
                   f"Train Loss: {train_loss:.4f} - Train Acc: {train_acc:.2f}% | "
