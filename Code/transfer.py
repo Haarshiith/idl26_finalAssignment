@@ -66,11 +66,11 @@ def main():
     
     # --- THE FIX: Optimize the ENTIRE network, but use a decayed learning rate (0.5x) ---
     # This gently shifts the learned weights without aggressively destroying them.
-    optimizer_tgt = optim.Adam(model.parameters(), lr=config["LEARNING_RATE"] * 0.5)
+    optimizer_tgt = optim.Adam(model.parameters(), lr=config["LEARNING_RATE"] * 0.1, weight_decay=1e-4)
     
     # Train for 20 epochs to ensure full convergence
     trainer_tgt = Trainer(model, criterion, optimizer_tgt, device)
-    trainer_tgt.fit(train_loader_tgt, val_loader_tgt, epochs=20)
+    trainer_tgt.fit(train_loader_tgt, val_loader_tgt, epochs=15)
 
     # 4. Generate Final Metrics for the Report
     evaluate_test_set(model, test_loader_tgt, device)
