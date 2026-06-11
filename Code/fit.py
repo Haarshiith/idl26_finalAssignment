@@ -20,6 +20,12 @@ class Trainer:
         
         for images, labels in dataloader:
             images, labels = images.to(self.device), labels.to(self.device).squeeze().long()
+
+            expected_channels = list(self.model.parameters())[0].shape[1]
+            if images.size(1) == 3 and expected_channels == 1:
+                images = images.mean(dim=1, keepdim=True) # RGB to Grayscale
+            elif images.size(1) == 1 and expected_channels == 3:
+                images = images.repeat(1, 3, 1, 1) # Grayscale to RGB
             
             self.optimizer.zero_grad()
             outputs = self.model(images)
@@ -45,6 +51,12 @@ class Trainer:
         with torch.no_grad():
             for images, labels in dataloader:
                 images, labels = images.to(self.device), labels.to(self.device).squeeze().long()
+
+                expected_channels = list(self.model.parameters())[0].shape[1]
+                if images.size(1) == 3 and expected_channels == 1:
+                    images = images.mean(dim=1, keepdim=True)
+                elif images.size(1) == 1 and expected_channels == 3:
+                    images = images.repeat(1, 3, 1, 1)
                 
                 outputs = self.model(images)
                 loss = self.criterion(outputs, labels)
