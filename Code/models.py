@@ -179,34 +179,45 @@ class ResNet18(nn.Module):
         out = self.dropout(out)
         return self.classifier(out)
 
-class EcoResNet(nn.Module):
-    """Downscaled ResNet for the Green Initiative. Drastically reduced parameters."""
-    def __init__(self, in_channels, num_classes, **kwargs):
-        super().__init__()
-
-        act_str = kwargs.get("activation_str", "ReLU")
-        activation = getattr(nn, act_str)
-
-        # Start with 16 channels instead of 64
-        self.conv1 = nn.Conv2d(in_channels, 16, kernel_size=3, stride=1, padding=1, bias=False)
-        self.bn1 = nn.BatchNorm2d(16)
-        self.activation = activation(inplace=True)
+class VGG16(nn.Module):
+    def __init__(self, in_channels=1, num_classes=11, **kwargs):
+        super(VGG16, self).__init__()
         
-        # 1 block per stage (halved depth), shrinking channels (75% fewer filters)
-        self.stage1 = ResBlock(16, 16, activation(inplace=True), stride=1)
-        self.stage2 = ResBlock(16, 32, activation(inplace=True), stride=2)
-        self.stage3 = ResBlock(32, 64, activation(inplace=True), stride=2)
-        self.stage4 = ResBlock(64, 128, activation(inplace=True), stride=2)
+        # The configuration structure for a standard VGG16
+        cfg = [64, 64, 'M', 128, 128, 'M', 256, 256, 256, 'M', 512, 512, 512, 'M', 512, 512, 512, 'M']
         
+        layers = []
+        current_channels = in_channels # This tracks the channels dynamically as we go deeper
+        
+        activation_str = kwargs.get("activation_str", "ReLU")
+        drop_rate = kwargs.get("drop_rate", 0.5)
+        
+        for v in cfg:
+            if v == 'M':
+                layers += [nn.MaxPool2d(kernel_size=2, stride=2)]
+            else:
+                # FIX: Use current_channels instead of a hardcoded initial value!
+                layers += [ConvBlock(in_channels=current_channels, out_channels=v, activation_str=activation_str)]
+                current_channels = v # FIX: Move the pointer forward to the new output channel size
+                
+        self.features = nn.Sequential(*layers)
+        
+        # Adaptive pooling ensures a stable input size for the linear classifier
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
-        self.classifier = nn.Linear(128, num_classes)
+        
+        self.classifier = nn.Sequential(
+            nn.Linear(512 * 1 * 1, 4096),
+            nn.ReLU(inplace=True),
+            nn.Dropout(p=drop_rate),
+            nn.Linear(4096, 4096),
+            nn.ReLU(inplace=True),
+            nn.Dropout(p=drop_rate),
+            nn.Linear(4096, num_classes)
+        )
 
     def forward(self, x):
-        out = self.activation(self.bn1(self.conv1(x)))
-        out = self.stage1(out)
-        out = self.stage2(out)
-        out = self.stage3(out)
-        out = self.stage4(out)
-        out = self.avgpool(out)
-        out = torch.flatten(out, 1)
-        return self.classifier(out)
+        x = self.features(x)
+        x = self.avgpool(x)
+        x = torch.flatten(x, 1)
+        x = self.classifier(x)
+        return x
