@@ -1,0 +1,18 @@
+# Environments
+venv/
+env/
+
+# Datasets and Heavy ML Files
+data/
+*.pt
+*.pth
+
+# IDE and Cache
+.vscode/
+__pycache__/
+*.pyc
+*.pyo
+
+# OS generated files
+.DS_Store
+Thumbs.db

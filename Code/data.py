@@ -18,6 +18,7 @@ def get_loaders(data, data_path, batch_size, val_split=0.1):
     train_data = data_dict['train_images']
     train_labels = data_dict['train_labels']
     val_data = data_dict['train_images'][val_start:]
+    train_data = data_dict['train_images'][:val_start]
     val_labels = data_dict['train_labels'][val_start:]
     
     train_dataset = TensorDataset(train_data, train_labels)
