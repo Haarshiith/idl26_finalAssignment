@@ -63,6 +63,8 @@ def main():
     for param in model.classifier.parameters():
         param.requires_grad = True
 
+    model.classifier = nn.Linear(128, config["NUM_CLASSES"]).to(device)
+
     # 3. Fine-tune on the small 'organs' dataset
     train_loader_tgt, val_loader_tgt, test_loader_tgt = get_loaders(data="organs", data_path=config["DATA_PATH"], batch_size=config["BATCH_SIZE"])
     
