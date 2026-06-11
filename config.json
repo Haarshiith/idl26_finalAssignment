@@ -2,10 +2,10 @@
     "DATA": "organs",
     "DATA_PATH": "data",
     "BATCH_SIZE": 16,
-    "MODEL": "EcoResNet",
+    "MODEL": "ResNet18",
     "CHANNELS": 1,
     "NUM_CLASSES": 11,
     "LEARNING_RATE": 0.001,
-    "EPOCHS": 10,
+    "EPOCHS": 20,
     "ACTIVATION": "ReLU"
 }
