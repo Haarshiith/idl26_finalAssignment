@@ -18,7 +18,7 @@ class Trainer:
         correct, sum = 0, 0
         
         for images, labels in dataloader:
-            images, labels = images.to(self.device), labels.to(self.device)
+            images, labels = images.to(self.device), labels.to(self.device).squeeze().long()
             
             self.optimizer.zero_grad()
             outputs = self.model(images)
@@ -41,7 +41,7 @@ class Trainer:
         
         with torch.no_grad():
             for images, labels in dataloader:
-                images, labels = images.to(self.device), labels.to(self.device)
+                images, labels = images.to(self.device), labels.to(self.device).squeeze().long()
                 
                 outputs = self.model(images)
                 loss = self.criterion(outputs, labels)
