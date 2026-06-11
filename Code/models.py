@@ -197,7 +197,13 @@ class VGG16(nn.Module):
                 layers += [nn.MaxPool2d(kernel_size=2, stride=2)]
             else:
                 # FIX: Use current_channels instead of a hardcoded initial value!
-                layers += [ConvBlock(in_channels=current_channels, out_channels=v, activation_str=activation_str)]
+                activation = getattr(nn, activation_str)
+
+                layers += [
+                    nn.Conv2d(current_channels, v, kernel_size=3, padding=1),
+                    nn.BatchNorm2d(v),
+                    activation(inplace=True)
+                ]
                 current_channels = v # FIX: Move the pointer forward to the new output channel size
                 
         self.features = nn.Sequential(*layers)
