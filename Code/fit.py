@@ -5,6 +5,7 @@ MG 6/6/2026
 """
 import torch
 import time
+import torchvision.transforms as T
 
 class Trainer:
     def __init__(self, model, criterion, optimizer, device):
@@ -23,9 +24,15 @@ class Trainer:
 
             expected_channels = list(self.model.parameters())[0].shape[1]
             if images.size(1) == 3 and expected_channels == 1:
-                images = images.mean(dim=1, keepdim=True) # RGB to Grayscale
+                images = images.mean(dim=1, keepdim=True)
             elif images.size(1) == 1 and expected_channels == 3:
-                images = images.repeat(1, 3, 1, 1) # Grayscale to RGB
+                images = images.repeat(1, 3, 1, 1)
+
+            augmentations = T.Compose([
+                T.RandomHorizontalFlip(p=0.5),
+                T.RandomRotation(degrees=15)
+            ])
+            images = augmentations(images)
             
             self.optimizer.zero_grad()
             outputs = self.model(images)
