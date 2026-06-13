@@ -139,10 +139,14 @@ class ResNet18(nn.Module):
         super(ResNet18, self).__init__()
         
         # 1. Load the Pre-trained ImageNet heavy-hitter
-        # This bypasses data starvation by importing pre-learned hierarchical features
         self.model = tv_models.resnet18(pretrained=True)
         
-        # 2. Replace the final classification head to map to our 11 organ classes
+        # 2. FREEZE THE BACKBONE: Turn off gradients for all pre-trained layers
+        for param in self.model.parameters():
+            param.requires_grad = False
+            
+        # 3. Replace the final classification head
+        # By default, newly created layers have requires_grad=True
         self.model.fc = nn.Linear(self.model.fc.in_features, num_classes)
 
     def forward(self, x):
