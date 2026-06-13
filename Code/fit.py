@@ -29,8 +29,7 @@ class Trainer:
                 images = images.repeat(1, 3, 1, 1)
 
             augmentations = T.Compose([
-                T.RandomHorizontalFlip(p=0.5),
-                T.RandomRotation(degrees=15)
+                T.RandomRotation(degrees=15) # Horizontal flip removed for anatomical integrity
             ])
             images = augmentations(images)
             
