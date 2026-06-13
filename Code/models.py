@@ -134,24 +134,25 @@ class VGG16(nn.Module):
 
 
 class ResNet18(nn.Module):
-    """ResNet18 utilizing Transfer Learning and dynamic spatial upsampling."""
+    """ResNet18 utilizing Fine-Tuning: Unfrozen backbone with Dropout-protected classification."""
     def __init__(self, in_channels=1, num_classes=11, **kwargs):
         super(ResNet18, self).__init__()
         
-        # 1. Load the Pre-trained ImageNet heavy-hitter
+        # 1. Load Pre-trained weights as a "warm start"
         self.model = tv_models.resnet18(pretrained=True)
         
-        # 2. FREEZE THE BACKBONE: Turn off gradients for all pre-trained layers
+        # 2. UNFREEZE THE BACKBONE: The ImageNet filters must adapt to the medical domain
         for param in self.model.parameters():
-            param.requires_grad = False
+            param.requires_grad = True
             
-        # 3. Replace the final classification head
-        # By default, newly created layers have requires_grad=True
-        self.model.fc = nn.Linear(self.model.fc.in_features, num_classes)
+        # 3. Add Dropout Regularization to the classifier head to prevent feature memorization
+        self.model.fc = nn.Sequential(
+            nn.Dropout(p=0.5),
+            nn.Linear(self.model.fc.in_features, num_classes)
+        )
 
     def forward(self, x):
-        # 3. RESOLUTION FIX: Dynamically upsample tiny medical scans to ResNet's native 224x224 resolution
-        # This prevents the initial Conv/MaxPool layers from crushing the spatial hierarchy
+        # Dynamically upsample tiny medical scans to ResNet's native 224x224 resolution
         if x.size(2) < 224 or x.size(3) < 224:
             x = F.interpolate(x, size=(224, 224), mode='bilinear', align_corners=False)
             
