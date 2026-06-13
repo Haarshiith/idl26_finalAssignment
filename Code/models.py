@@ -227,3 +227,41 @@ class VGG16(nn.Module):
         x = torch.flatten(x, 1)
         x = self.classifier(x)
         return x
+
+class LeNet(nn.Module):
+    """Classic LeNet-5 architecture optimized for low-resolution inputs."""
+    def __init__(self, in_channels=1, num_classes=11, **kwargs):
+        super(LeNet, self).__init__()
+        
+        activation_str = kwargs.get("activation_str", "ReLU")
+        self.activation = getattr(nn, activation_str)
+        
+        # 2 Convolutional Layers + Max Pooling
+        self.features = nn.Sequential(
+            nn.Conv2d(in_channels, 6, kernel_size=5, padding=2),
+            self.activation(inplace=True),
+            nn.MaxPool2d(kernel_size=2, stride=2),
+            
+            nn.Conv2d(6, 16, kernel_size=5),
+            self.activation(inplace=True),
+            nn.MaxPool2d(kernel_size=2, stride=2)
+        )
+        
+        # Bridge to ensure consistent dimensions regardless of input image size
+        self.avgpool = nn.AdaptiveAvgPool2d((5, 5))
+        
+        # 3 Fully Connected Layers
+        self.classifier = nn.Sequential(
+            nn.Linear(16 * 5 * 5, 120),
+            self.activation(inplace=True),
+            nn.Linear(120, 84),
+            self.activation(inplace=True),
+            nn.Linear(84, num_classes)
+        )
+
+    def forward(self, x):
+        x = self.features(x)
+        x = self.avgpool(x)
+        x = torch.flatten(x, 1)
+        x = self.classifier(x)
+        return x
