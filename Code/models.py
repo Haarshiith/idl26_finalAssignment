@@ -165,7 +165,7 @@ class ResNet18(nn.Module):
         )
         
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
-        self.dropout = nn.Dropout(p=kwargs.get("drop_rate", 0.5))
+        
         self.classifier = nn.Linear(512, num_classes)
 
     def forward(self, x):
@@ -176,7 +176,7 @@ class ResNet18(nn.Module):
         out = self.stage4(out)
         out = self.avgpool(out)
         out = torch.flatten(out, 1)
-        out = self.dropout(out)
+        
         return self.classifier(out)
 
 class VGG16(nn.Module):
