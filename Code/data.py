@@ -26,8 +26,8 @@ def get_loaders(data, data_path, batch_size, val_split=0.1):
     val_dataset = TensorDataset(val_data, val_labels)
     test_dataset = TensorDataset(data_dict['test_images'], data_dict['test_labels'])
     
-    train_loader = DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=True)
-    val_loader = DataLoader(dataset=val_dataset, batch_size=batch_size, shuffle=False)
-    test_loader = DataLoader(dataset=test_dataset, batch_size=batch_size, shuffle=False)
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, drop_last=True)
+    val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, drop_last=True)
+    test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, drop_last=False)
     
     return train_loader, val_loader, test_loader
