@@ -259,7 +259,7 @@ class LeNet(nn.Module):
         
         # Ultra-lightweight classifier (No massive FC layers)
         self.classifier = nn.Sequential(
-            nn.Dropout(p=0.5), # Forces the network to use multiple pathways
+            nn.Dropout(p=0.2), # Forces the network to use multiple pathways
             nn.Linear(120, num_classes)
         )
 
