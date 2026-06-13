@@ -229,44 +229,40 @@ class VGG16(nn.Module):
         return x
 
 class LeNet(nn.Module):
-    """Modern LeNet-5 upgraded with BatchNorm and Dropout for generalization."""
+    """LeNet architecture modernized with Global Average Pooling (Session 9, Slide 30)."""
     def __init__(self, in_channels=1, num_classes=11, **kwargs):
         super(LeNet, self).__init__()
         
         activation_str = kwargs.get("activation_str", "ReLU")
         self.activation = getattr(nn, activation_str)
         
-        # 2 Convolutional Layers + Modern BatchNorm (from Lecture 9 slides)
+        # Standard LeNet spatial extraction
         self.features = nn.Sequential(
             nn.Conv2d(in_channels, 6, kernel_size=5, padding=2),
-            nn.BatchNorm2d(6), # Stabilizes feature extraction
+            nn.BatchNorm2d(6),
             self.activation(inplace=True),
             nn.MaxPool2d(kernel_size=2, stride=2),
             
             nn.Conv2d(6, 16, kernel_size=5),
-            nn.BatchNorm2d(16), # Stabilizes feature extraction
+            nn.BatchNorm2d(16),
             self.activation(inplace=True),
-            nn.MaxPool2d(kernel_size=2, stride=2)
+            nn.MaxPool2d(kernel_size=2, stride=2),
+            
+            # LeNet's traditional C5 layer, kept as a convolution to support GAP
+            nn.Conv2d(16, 120, kernel_size=5, padding=2),
+            nn.BatchNorm2d(120),
+            self.activation(inplace=True)
         )
         
-        self.avgpool = nn.AdaptiveAvgPool2d((5, 5))
+        # SLIDE 30 FIX: Global Average Pooling to destroy spatial memorization
+        self.global_pool = nn.AdaptiveAvgPool2d((1, 1))
         
-        # 3 Fully Connected Layers + Dropout Regularization
-        self.classifier = nn.Sequential(
-            nn.Linear(16 * 5 * 5, 120),
-            self.activation(inplace=True),
-            nn.Dropout(p=0.4), # Breaks memorization pathways
-            
-            nn.Linear(120, 84),
-            self.activation(inplace=True),
-            nn.Dropout(p=0.4), # Breaks memorization pathways
-            
-            nn.Linear(84, num_classes)
-        )
+        # Ultra-lightweight classifier (No massive FC layers)
+        self.classifier = nn.Linear(120, num_classes)
 
     def forward(self, x):
         x = self.features(x)
-        x = self.avgpool(x)
-        x = torch.flatten(x, 1)
+        x = self.global_pool(x)
+        x = torch.flatten(x, 1) # Flatten the 1x1 pooled concepts, not the spatial grid
         x = self.classifier(x)
         return x
