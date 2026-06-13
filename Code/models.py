@@ -134,18 +134,24 @@ class VGG16(nn.Module):
 
 
 class ResNet18(nn.Module):
-    """ResNet18 utilizing Fine-Tuning: Unfrozen backbone with Dropout-protected classification."""
+    """ResNet18 utilizing Partial Fine-Tuning: Early layers frozen, deep layers unfrozen for domain adaptation."""
     def __init__(self, in_channels=1, num_classes=11, **kwargs):
         super(ResNet18, self).__init__()
         
-        # 1. Load Pre-trained weights as a "warm start"
         self.model = tv_models.resnet18(pretrained=True)
         
-        # 2. UNFREEZE THE BACKBONE: The ImageNet filters must adapt to the medical domain
+        # 1. FREEZE ALL LAYERS INITIALLY
         for param in self.model.parameters():
+            param.requires_grad = False
+            
+        # 2. PARTIAL UNFREEZE: Open up the deep spatial layers (layer3 and layer4)
+        # This allows domain adaptation for complex shapes while preserving foundational edge detectors
+        for param in self.model.layer3.parameters():
+            param.requires_grad = True
+        for param in self.model.layer4.parameters():
             param.requires_grad = True
             
-        # 3. Add Dropout Regularization to the classifier head to prevent feature memorization
+        # 3. Robust Classifier Head
         self.model.fc = nn.Sequential(
             nn.Dropout(p=0.5),
             nn.Linear(self.model.fc.in_features, num_classes)
