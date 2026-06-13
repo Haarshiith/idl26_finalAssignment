@@ -27,11 +27,6 @@ class Trainer:
                 images = images.mean(dim=1, keepdim=True)
             elif images.size(1) == 1 and expected_channels == 3:
                 images = images.repeat(1, 3, 1, 1)
-
-            augmentations = T.Compose([
-                T.RandomRotation(degrees=15) # Horizontal flip removed for anatomical integrity
-            ])
-            images = augmentations(images)
             
             self.optimizer.zero_grad()
             outputs = self.model(images)
