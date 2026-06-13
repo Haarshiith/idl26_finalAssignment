@@ -134,33 +134,35 @@ class VGG16(nn.Module):
 
 
 class ResNet18(nn.Module):
-    """ResNet18 utilizing Partial Fine-Tuning: Early layers frozen, deep layers unfrozen for domain adaptation."""
+    """ResNet18 utilizing Full Fine-Tuning and strict ImageNet input normalization."""
     def __init__(self, in_channels=1, num_classes=11, **kwargs):
         super(ResNet18, self).__init__()
         
         self.model = tv_models.resnet18(pretrained=True)
         
-        # 1. FREEZE ALL LAYERS INITIALLY
+        # 1. UNFREEZE ALL LAYERS: Medical X-rays have completely different low-level textures 
+        # than ImageNet photos. We MUST let the early edge detectors adapt.
         for param in self.model.parameters():
-            param.requires_grad = False
-            
-        # 2. PARTIAL UNFREEZE: Open up the deep spatial layers (layer3 and layer4)
-        # This allows domain adaptation for complex shapes while preserving foundational edge detectors
-        for param in self.model.layer3.parameters():
-            param.requires_grad = True
-        for param in self.model.layer4.parameters():
             param.requires_grad = True
             
-        # 3. Robust Classifier Head
         self.model.fc = nn.Sequential(
             nn.Dropout(p=0.5),
             nn.Linear(self.model.fc.in_features, num_classes)
         )
+        
+        # 2. IMAGENET NORMALIZATION CONSTANTS
+        # Pre-trained weights mathematically expect inputs to be centered around these exact values.
+        # register_buffer ensures these tensors move to the GPU automatically.
+        self.register_buffer('mean', torch.tensor([0.485, 0.456, 0.406]).view(1, 3, 1, 1))
+        self.register_buffer('std', torch.tensor([0.229, 0.224, 0.225]).view(1, 3, 1, 1))
 
     def forward(self, x):
-        # Dynamically upsample tiny medical scans to ResNet's native 224x224 resolution
+        # Upsample to native resolution
         if x.size(2) < 224 or x.size(3) < 224:
             x = F.interpolate(x, size=(224, 224), mode='bilinear', align_corners=False)
+            
+        # Apply strict ImageNet normalization to prevent activation collapse
+        x = (x - self.mean) / self.std
             
         return self.model(x)
 
