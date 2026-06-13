@@ -5,7 +5,7 @@ import sys
 
 # 1. Define your master theory of optimal pairings
 pairings = [
-    {"DATA": "organs", "MODEL": "ResNet18", "EPOCHS": 30, "LEARNING_RATE": 0.001},
+    {"DATA": "organs", "MODEL": "LeNet", "EPOCHS": 40, "LEARNING_RATE": 0.002}
     # {"DATA": "chest", "MODEL": "ResNet18", "EPOCHS": 30, "LEARNING_RATE": 0.001}
     # {"DATA": "cells", "MODEL": "AlexNet", "EPOCHS": 15, "LEARNING_RATE": 0.001},
     # {"DATA": "lesions", "MODEL": "VGG16", "EPOCHS": 30, "LEARNING_RATE": 0.0005}
