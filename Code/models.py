@@ -227,3 +227,37 @@ class VGG16(nn.Module):
         x = torch.flatten(x, 1)
         x = self.classifier(x)
         return x
+    
+class EcoResNet(nn.Module):
+    """A lightweight CNN designed for constrained environments and simple datasets."""
+    def __init__(self, in_channels=1, num_classes=11, **kwargs):
+        super(EcoResNet, self).__init__()
+        drop_rate = kwargs.get("drop_rate", 0.5)
+        activation_str = kwargs.get("activation_str", "ReLU")
+        self.activation = getattr(nn, activation_str)
+
+        self.features = nn.Sequential(
+            nn.Conv2d(in_channels, 16, kernel_size=3, padding=1),
+            nn.BatchNorm2d(16),
+            self.activation(inplace=True),
+            nn.MaxPool2d(2, 2),
+            
+            nn.Conv2d(16, 32, kernel_size=3, padding=1),
+            nn.BatchNorm2d(32),
+            self.activation(inplace=True),
+            nn.MaxPool2d(2, 2)
+        )
+        
+        self.global_pool = nn.AdaptiveAvgPool2d((1, 1))
+        
+        self.classifier = nn.Sequential(
+            nn.Dropout(p=drop_rate),
+            nn.Linear(32, num_classes)
+        )
+
+    def forward(self, x):
+        x = self.features(x)
+        x = self.global_pool(x)
+        x = torch.flatten(x, 1)
+        x = self.classifier(x)
+        return x
