@@ -5,6 +5,8 @@ MG 6/6/2026
 """
 import torch
 import torch.nn as nn
+import torchvision.models as tv_models
+import torch.nn.functional as F
 
 class VGGBlock(nn.Module):
     """Modular VGG block with configurable number of conv layers and channels.
@@ -132,52 +134,24 @@ class VGG16(nn.Module):
 
 
 class ResNet18(nn.Module):
-    """ResNet18 (He et al., 2016) adapted for smaller inputs.
-    
-    activation - flexible activation function to allow experimentation (e.g., ReLU, LeakyReLU, etc.)
-    """
-    def __init__(self, in_channels, num_classes, **kwargs):
-        super().__init__()
-
-        act_str = kwargs.get("activation_str", "ReLU")
-        activation = getattr(nn, act_str)
-
-        self.conv1 = nn.Conv2d(in_channels, 64, kernel_size=3, stride=1, padding=1, bias=False)
-        self.bn1 = nn.BatchNorm2d(64)
-        self.activation = activation(inplace=True)
-        print("Using activation function:", self.activation)
+    """ResNet18 utilizing Transfer Learning and dynamic spatial upsampling."""
+    def __init__(self, in_channels=1, num_classes=11, **kwargs):
+        super(ResNet18, self).__init__()
         
-        self.stage1 = nn.Sequential(
-            ResBlock(64, 64, activation(inplace=True), stride=1),
-            ResBlock(64, 64, activation(inplace=True), stride=1)
-        )
-        self.stage2 = nn.Sequential(
-            ResBlock(64, 128, activation(inplace=True), stride=2),          
-            ResBlock(128, 128, activation(inplace=True), stride=1)
-        )
-        self.stage3 = nn.Sequential(
-            ResBlock(128, 256, activation(inplace=True), stride=2),
-            ResBlock(256, 256, activation(inplace=True), stride=1)
-        )
-        self.stage4 = nn.Sequential(
-            ResBlock(256, 512, activation(inplace=True), stride=2),
-            ResBlock(512, 512, activation(inplace=True), stride=1)
-        )
+        # 1. Load the Pre-trained ImageNet heavy-hitter
+        # This bypasses data starvation by importing pre-learned hierarchical features
+        self.model = tv_models.resnet18(pretrained=True)
         
-        self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
-        
-        self.classifier = nn.Linear(512, num_classes)
+        # 2. Replace the final classification head to map to our 11 organ classes
+        self.model.fc = nn.Linear(self.model.fc.in_features, num_classes)
 
     def forward(self, x):
-        out = self.activation(self.bn1(self.conv1(x)))
-        out = self.stage1(out)
-        out = self.stage2(out)
-        out = self.stage3(out)
-        out = self.stage4(out)
-        out = self.avgpool(out)
-        out = torch.flatten(out, 1)
-        
-        return self.classifier(out)
+        # 3. RESOLUTION FIX: Dynamically upsample tiny medical scans to ResNet's native 224x224 resolution
+        # This prevents the initial Conv/MaxPool layers from crushing the spatial hierarchy
+        if x.size(2) < 224 or x.size(3) < 224:
+            x = F.interpolate(x, size=(224, 224), mode='bilinear', align_corners=False)
+            
+        return self.model(x)
 
 class VGG16(nn.Module):
     def __init__(self, in_channels=1, num_classes=11, **kwargs):
