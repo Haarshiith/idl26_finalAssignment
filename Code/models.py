@@ -229,33 +229,38 @@ class VGG16(nn.Module):
         return x
 
 class LeNet(nn.Module):
-    """Classic LeNet-5 architecture optimized for low-resolution inputs."""
+    """Modern LeNet-5 upgraded with BatchNorm and Dropout for generalization."""
     def __init__(self, in_channels=1, num_classes=11, **kwargs):
         super(LeNet, self).__init__()
         
         activation_str = kwargs.get("activation_str", "ReLU")
         self.activation = getattr(nn, activation_str)
         
-        # 2 Convolutional Layers + Max Pooling
+        # 2 Convolutional Layers + Modern BatchNorm (from Lecture 9 slides)
         self.features = nn.Sequential(
             nn.Conv2d(in_channels, 6, kernel_size=5, padding=2),
+            nn.BatchNorm2d(6), # Stabilizes feature extraction
             self.activation(inplace=True),
             nn.MaxPool2d(kernel_size=2, stride=2),
             
             nn.Conv2d(6, 16, kernel_size=5),
+            nn.BatchNorm2d(16), # Stabilizes feature extraction
             self.activation(inplace=True),
             nn.MaxPool2d(kernel_size=2, stride=2)
         )
         
-        # Bridge to ensure consistent dimensions regardless of input image size
         self.avgpool = nn.AdaptiveAvgPool2d((5, 5))
         
-        # 3 Fully Connected Layers
+        # 3 Fully Connected Layers + Dropout Regularization
         self.classifier = nn.Sequential(
             nn.Linear(16 * 5 * 5, 120),
             self.activation(inplace=True),
+            nn.Dropout(p=0.4), # Breaks memorization pathways
+            
             nn.Linear(120, 84),
             self.activation(inplace=True),
+            nn.Dropout(p=0.4), # Breaks memorization pathways
+            
             nn.Linear(84, num_classes)
         )
 
