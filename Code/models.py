@@ -258,7 +258,10 @@ class LeNet(nn.Module):
         self.global_pool = nn.AdaptiveAvgPool2d((1, 1))
         
         # Ultra-lightweight classifier (No massive FC layers)
-        self.classifier = nn.Linear(120, num_classes)
+        self.classifier = nn.Sequential(
+            nn.Dropout(p=0.5), # Forces the network to use multiple pathways
+            nn.Linear(120, num_classes)
+        )
 
     def forward(self, x):
         x = self.features(x)
