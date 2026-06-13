@@ -229,14 +229,13 @@ class VGG16(nn.Module):
         return x
 
 class LeNet(nn.Module):
-    """LeNet architecture modernized with Global Average Pooling (Session 9, Slide 30)."""
+    """Modern LeNet-5: Restored FC layers for parameter capacity, stabilized with BatchNorm & Dropout."""
     def __init__(self, in_channels=1, num_classes=11, **kwargs):
         super(LeNet, self).__init__()
         
         activation_str = kwargs.get("activation_str", "ReLU")
         self.activation = getattr(nn, activation_str)
         
-        # Standard LeNet spatial extraction
         self.features = nn.Sequential(
             nn.Conv2d(in_channels, 6, kernel_size=5, padding=2),
             nn.BatchNorm2d(6),
@@ -246,26 +245,27 @@ class LeNet(nn.Module):
             nn.Conv2d(6, 16, kernel_size=5),
             nn.BatchNorm2d(16),
             self.activation(inplace=True),
-            nn.MaxPool2d(kernel_size=2, stride=2),
-            
-            # LeNet's traditional C5 layer, kept as a convolution to support GAP
-            nn.Conv2d(16, 120, kernel_size=5, padding=2),
-            nn.BatchNorm2d(120),
-            self.activation(inplace=True)
+            nn.MaxPool2d(kernel_size=2, stride=2)
         )
         
-        # SLIDE 30 FIX: Global Average Pooling to destroy spatial memorization
-        self.global_pool = nn.AdaptiveAvgPool2d((1, 1))
+        self.avgpool = nn.AdaptiveAvgPool2d((5, 5))
         
-        # Ultra-lightweight classifier (No massive FC layers)
+        # Restoring the 400-feature pipeline with balanced 0.3 Dropout
         self.classifier = nn.Sequential(
-            nn.Dropout(p=0.2), # Forces the network to use multiple pathways
-            nn.Linear(120, num_classes)
+            nn.Flatten(),
+            nn.Linear(16 * 5 * 5, 120),
+            self.activation(inplace=True),
+            nn.Dropout(p=0.3), 
+            
+            nn.Linear(120, 84),
+            self.activation(inplace=True),
+            nn.Dropout(p=0.3),
+            
+            nn.Linear(84, num_classes)
         )
 
     def forward(self, x):
         x = self.features(x)
-        x = self.global_pool(x)
-        x = torch.flatten(x, 1) # Flatten the 1x1 pooled concepts, not the spatial grid
+        x = self.avgpool(x)
         x = self.classifier(x)
         return x
