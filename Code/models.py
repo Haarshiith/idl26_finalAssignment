@@ -149,7 +149,10 @@ class ResNet18(nn.Module):
         self.model.maxpool = nn.Identity()
         
         # 4. Map the final classifier to our 11 organs
-        self.model.fc = nn.Linear(self.model.fc.in_features, num_classes)
+        self.model.fc = nn.Sequential(
+            nn.Dropout(p=0.5), # Forces the 11M parameters to generalize
+            nn.Linear(self.model.fc.in_features, num_classes)
+        )
 
     def forward(self, x):
         # No upsampling needed! The network natively processes the crisp 28x28 images.
