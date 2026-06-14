@@ -64,6 +64,11 @@ def main():
 
     # 2. Prepare for Full-Network Fine-Tuning
     print("\n--- PHASE 2: Adapting architecture for 'orgs' ---")
+
+    # --- THE FIX: FREEZE THE BACKBONE ---
+    # We must protect the medical features we just learned from 'cells'.
+    for param in model.parameters():
+        param.requires_grad = False
     
     # We DO NOT freeze the parameters. We let the whole network adapt.
     # We just give it a fresh classifier for the new dataset.
