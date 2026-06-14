@@ -66,8 +66,11 @@ def main():
     print("\n--- PHASE 2: Adapting architecture for 'orgs' ---")
 
     # We MUST unfreeze the backbone so the 'cells' features can adapt to 'organs'
-    for param in model.parameters():
-        param.requires_grad = True
+    for name, param in model.model.named_parameters():
+        if "layer3" in name or "layer4" in name or "fc" in name:
+            param.requires_grad = True
+        else:
+            param.requires_grad = False
         
     # Re-initialize the classifier with our robust 0.5 Dropout synergy.
     model.model.fc = nn.Sequential(
@@ -78,15 +81,14 @@ def main():
     # 3. Fine-tune on the 'organs' dataset
     train_loader_tgt, val_loader_tgt, test_loader_tgt = get_loaders(data="organs", data_path=config["DATA_PATH"], batch_size=config["BATCH_SIZE"])
     
-    # --- THE FIX: Optimize the ENTIRE network, but use a decayed learning rate (0.5x) ---
-    # This gently shifts the learned weights without aggressively destroying them.
-    optimizer_tgt = optim.Adam(model.parameters(), lr=config["LEARNING_RATE"] * 0.1, weight_decay=1e-3)
+    # --- THE FIX: Pass ONLY unfrozen parameters to the optimizer, remove the *0.1 LR multiplier ---
+    optimizer_tgt = optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=config["LEARNING_RATE"], weight_decay=1e-3)
     
-    # Train for 20 epochs to ensure full convergence
+    # --- THE FIX: Sync to config epochs (25) instead of hardcoding 15 ---
     trainer_tgt = Trainer(model, criterion, optimizer_tgt, device)
-    trainer_tgt.fit(train_loader_tgt, val_loader_tgt, epochs=15)
+    trainer_tgt.fit(train_loader_tgt, val_loader_tgt, epochs=config["EPOCHS"])
 
-    # --- THE FIX: Load the optimal weights before final evaluation! ---
+    # Load the optimal weights before final evaluation
     model.load_state_dict(torch.load("best_model.pth", weights_only=True))
 
     # 4. Generate Final Metrics for the Report
