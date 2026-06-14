@@ -6,6 +6,7 @@ from sklearn.metrics import accuracy_score, precision_recall_fscore_support, con
 from data import get_loaders
 import models
 from fit import Trainer
+import torchvision.transforms as T
 import numpy as np
 
 

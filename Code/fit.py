@@ -29,7 +29,8 @@ class Trainer:
                 images = images.repeat(1, 3, 1, 1)
             
             augmentations = T.Compose([
-                T.RandomAffine(degrees=0, translate=(0.08, 0.08))
+                T.RandomAffine(degrees=0, translate=(0.08, 0.08)),
+                T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
             ])
             images = augmentations(images)
             
@@ -63,6 +64,9 @@ class Trainer:
                     images = images.mean(dim=1, keepdim=True)
                 elif images.size(1) == 1 and expected_channels == 3:
                     images = images.repeat(1, 3, 1, 1)
+                
+                normalize = T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+                images = normalize(images)
                 
                 outputs = self.model(images)
                 loss = self.criterion(outputs, labels)
