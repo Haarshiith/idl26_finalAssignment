@@ -38,10 +38,12 @@ def main():
             json.dump(current_config, f, indent=4)
             
         print(f"Config locked. Booting isolated training process...")
+
+        script_to_run = "Code/transfer.py" if pair['DATA'] == "organs" else "Code/train.py"
         
         # Execute the training script as a separate process to ensure clean GPU VRAM
         try:
-            subprocess.run([sys.executable, "Code/train.py"], check=True)
+            subprocess.run([sys.executable, script_to_run], check=True)
         except subprocess.CalledProcessError:
             print(f"!!! CRITICAL FAILURE during {pair['DATA']} execution. Halting suite. !!!")
             break
