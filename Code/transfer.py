@@ -1,4 +1,5 @@
 import json
+from xml.parsers.expat import model
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -8,6 +9,7 @@ import models
 from fit import Trainer
 import torchvision.transforms as T
 import numpy as np
+import os
 
 
 def evaluate_test_set(model, test_loader, device):
@@ -66,17 +68,24 @@ def main():
     print(f"Executing Knowledge Transfer on: {device}")
 
     # 1. Pre-train on the large 'chest' dataset
-    print("\n--- PHASE 1: Pre-training features on 'chest' dataset ---")
-    train_loader_src, val_loader_src, _ = get_loaders(data="chest", data_path=config["DATA_PATH"], batch_size=config["BATCH_SIZE"])
-
-    model_class = getattr(models, config["MODEL"])
-    model = model_class(in_channels=config["CHANNELS"], num_classes=config["NUM_CLASSES"], drop_rate=0.5, activation_str=config["ACTIVATION"]).to(device)
+    cache_path = "chest_pretrained_base.pth"
     
-    criterion = nn.CrossEntropyLoss()
-    optimizer_src = optim.Adam(model.parameters(), lr=config["LEARNING_RATE"])
-    
-    trainer_src = Trainer(model, criterion, optimizer_src, device)
-    trainer_src.fit(train_loader_src, val_loader_src, epochs=15)
+    if os.path.exists(cache_path):
+        print(f"\n[MLOps] Found cached Phase 1 weights at '{cache_path}'. Bypassing redundant training loop...")
+        model.load_state_dict(torch.load(cache_path, weights_only=True))
+    else:
+        print("\n--- PHASE 1: Pre-training features on 'chest' dataset ---")
+        train_loader_src, val_loader_src, _ = get_loaders(data="chest", data_path=config["DATA_PATH"], batch_size=config["BATCH_SIZE"])
+        
+        optimizer_src = optim.Adam(model.parameters(), lr=config["LEARNING_RATE"])
+        criterion_src = nn.CrossEntropyLoss()
+        
+        trainer_src = Trainer(model, criterion_src, optimizer_src, device)
+        trainer_src.fit(train_loader_src, val_loader_src, epochs=15)
+        
+        # Save the perfected Phase 1 weights to the hard drive so we never have to calculate them again
+        torch.save(model.state_dict(), cache_path)
+        print(f"\n[MLOps] Phase 1 weights cached successfully to '{cache_path}'.")
 
     # 2. Prepare for Full-Network Fine-Tuning
     print("\n--- PHASE 2: Adapting architecture for 'organs' ---")
@@ -92,7 +101,7 @@ def main():
     ).to(device)
 
     # 3. Fine-tune on the 'organs' dataset
-    train_loader_tgt, val_loader_tgt, test_loader_tgt = get_loaders(data="organs", data_path=config["DATA_PATH"], batch_size=config["BATCH_SIZE"])
+    train_loader_tgt, val_loader_tgt, test_loader_tgt = get_loaders(data="orgs", data_path=config["DATA_PATH"], batch_size=config["BATCH_SIZE"])
     
     # THE FIX: Warm fine-tuning rate (0.0002) with strict Weight Decay
     # We remove Label Smoothing to allow the network to confidently map the standard metrics.
