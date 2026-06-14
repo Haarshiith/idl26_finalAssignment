@@ -65,16 +65,14 @@ def main():
     # 2. Prepare for Full-Network Fine-Tuning
     print("\n--- PHASE 2: Adapting architecture for 'orgs' ---")
 
-    # --- THE FIX: FREEZE THE BACKBONE ---
-    # We must protect the medical features we just learned from 'cells'.
+    # We MUST unfreeze the backbone so the 'cells' features can adapt to 'organs'
     for param in model.parameters():
-        param.requires_grad = False
-    
-    # We DO NOT freeze the parameters. We let the whole network adapt.
-    # We just give it a fresh classifier for the new dataset.
+        param.requires_grad = True
+        
+    # Re-initialize the classifier with our robust 0.5 Dropout synergy.
     model.model.fc = nn.Sequential(
         nn.Dropout(p=0.5),
-        nn.Linear(512, config["NUM_CLASSES"]) # 512 is ResNet18's native feature output
+        nn.Linear(512, config["NUM_CLASSES"])
     ).to(device)
 
     # 3. Fine-tune on the 'organs' dataset
@@ -82,7 +80,7 @@ def main():
     
     # --- THE FIX: Optimize the ENTIRE network, but use a decayed learning rate (0.5x) ---
     # This gently shifts the learned weights without aggressively destroying them.
-    optimizer_tgt = optim.Adam(model.parameters(), lr=config["LEARNING_RATE"], weight_decay=1e-3)
+    optimizer_tgt = optim.Adam(model.parameters(), lr=config["LEARNING_RATE"] * 0.1, weight_decay=1e-3)
     
     # Train for 20 epochs to ensure full convergence
     trainer_tgt = Trainer(model, criterion, optimizer_tgt, device)
