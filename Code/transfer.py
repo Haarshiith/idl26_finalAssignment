@@ -65,12 +65,10 @@ def main():
     # 2. Prepare for Full-Network Fine-Tuning
     print("\n--- PHASE 2: Adapting architecture for 'orgs' ---")
 
-    # We MUST unfreeze the backbone so the 'cells' features can adapt to 'organs'
-    for name, param in model.model.named_parameters():
-        if "layer3" in name or "layer4" in name or "fc" in name:
-            param.requires_grad = True
-        else:
-            param.requires_grad = False
+    # THE FIX: Fully Unfreeze the Backbone
+    # We must allow the early 'cells' texture filters to adapt to 'organs'.
+    for param in model.parameters():
+        param.requires_grad = True
         
     # Re-initialize the classifier with our robust 0.5 Dropout synergy.
     model.model.fc = nn.Sequential(
@@ -81,10 +79,10 @@ def main():
     # 3. Fine-tune on the 'organs' dataset
     train_loader_tgt, val_loader_tgt, test_loader_tgt = get_loaders(data="organs", data_path=config["DATA_PATH"], batch_size=config["BATCH_SIZE"])
     
-    # --- THE FIX: Pass ONLY unfrozen parameters to the optimizer, remove the *0.1 LR multiplier ---
-    optimizer_tgt = optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=config["LEARNING_RATE"], weight_decay=1e-3)
+    # THE FIX: Bind all parameters to the optimizer with optimal LR and Weight Decay
+    optimizer_tgt = optim.Adam(model.parameters(), lr=config["LEARNING_RATE"], weight_decay=1e-3)
     
-    # --- THE FIX: Sync to config epochs (25) instead of hardcoding 15 ---
+    # THE FIX: Sync to config epochs (25)
     trainer_tgt = Trainer(model, criterion, optimizer_tgt, device)
     trainer_tgt.fit(train_loader_tgt, val_loader_tgt, epochs=config["EPOCHS"])
 
