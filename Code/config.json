@@ -7,5 +7,5 @@
   "NUM_CLASSES": 11,
   "LEARNING_RATE": 0.001,
   "EPOCHS": 1,
-  "DROP_RATE": 0.6
+  "DROP_RATE": 0.9
 }
