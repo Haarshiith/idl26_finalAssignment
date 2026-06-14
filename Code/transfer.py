@@ -32,6 +32,13 @@ def evaluate_test_set(model, test_loader, device):
             
     acc = accuracy_score(all_targets, all_preds) * 100
     precision, recall, f1, _ = precision_recall_fscore_support(all_targets, all_preds, average='macro', zero_division=0)
+
+    # Calculate Standard Metrics (TP, FP, TN, FN) across all classes
+    cm = confusion_matrix(all_targets, all_preds)
+    TP = np.diag(cm).sum()
+    FP = (cm.sum(axis=0) - np.diag(cm)).sum()
+    FN = (cm.sum(axis=1) - np.diag(cm)).sum()
+    TN = cm.sum() - (FP + FN + TP)
     
     print("\n" + "="*50)
     print("FINAL TEST SET METRICS FOR REPORT.MD")
@@ -40,6 +47,8 @@ def evaluate_test_set(model, test_loader, device):
     print(f"Precision: {precision:.4f}")
     print(f"Recall:    {recall:.4f}")
     print(f"Macro F1:  {f1:.4f}")
+    print("-" * 50)
+    print(f"Standard Metrics Total -> TP: {TP} | FP: {FP} | TN: {TN} | FN: {FN}")
     print("="*50 + "\n")
 
 def main():
@@ -49,8 +58,8 @@ def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Executing Knowledge Transfer on: {device}")
 
-    # 1. Pre-train on the large 'cells' dataset
-    print("\n--- PHASE 1: Pre-training features on 'cells' dataset ---")
+    # 1. Pre-train on the large 'chest' dataset
+    print("\n--- PHASE 1: Pre-training features on 'chest' dataset ---")
     train_loader_src, val_loader_src, _ = get_loaders(data="chest", data_path=config["DATA_PATH"], batch_size=config["BATCH_SIZE"])
 
     model_class = getattr(models, config["MODEL"])
@@ -60,10 +69,10 @@ def main():
     optimizer_src = optim.Adam(model.parameters(), lr=config["LEARNING_RATE"])
     
     trainer_src = Trainer(model, criterion, optimizer_src, device)
-    trainer_src.fit(train_loader_src, val_loader_src, epochs=5) # 5 epochs to learn features
+    trainer_src.fit(train_loader_src, val_loader_src, epochs=15)
 
     # 2. Prepare for Full-Network Fine-Tuning
-    print("\n--- PHASE 2: Adapting architecture for 'orgs' ---")
+    print("\n--- PHASE 2: Adapting architecture for 'organs' ---")
     
     # Fully Unfreeze the Backbone
     for param in model.parameters():
