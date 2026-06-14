@@ -79,10 +79,10 @@ def main():
     # 3. Fine-tune on the 'organs' dataset
     train_loader_tgt, val_loader_tgt, test_loader_tgt = get_loaders(data="organs", data_path=config["DATA_PATH"], batch_size=config["BATCH_SIZE"])
     
-    # THE FIX: Bind all parameters to the optimizer with optimal LR and Weight Decay
+    # Bind all parameters to the optimizer with optimal LR and Weight Decay
     optimizer_tgt = optim.Adam(model.parameters(), lr=config["LEARNING_RATE"], weight_decay=1e-3)
     
-    # THE FIX: Sync to config epochs (25)
+    # Sync to config epochs (25)
     trainer_tgt = Trainer(model, criterion, optimizer_tgt, device)
     trainer_tgt.fit(train_loader_tgt, val_loader_tgt, epochs=config["EPOCHS"])
 
