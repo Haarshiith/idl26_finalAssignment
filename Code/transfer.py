@@ -64,13 +64,13 @@ def main():
 
     # 2. Prepare for Full-Network Fine-Tuning
     print("\n--- PHASE 2: Adapting architecture for 'orgs' ---")
-
-    # THE FIX: Fully Unfreeze the Backbone
-    # We must allow the early 'cells' texture filters to adapt to 'organs'.
+    
+    # Fully Unfreeze the Backbone
     for param in model.parameters():
         param.requires_grad = True
         
-    # Re-initialize the classifier with our robust 0.5 Dropout synergy.
+    # THE FIX: Restore the fresh classifier head. 
+    # The new micro-learning rate will prevent the gradient shockwave we saw earlier.
     model.model.fc = nn.Sequential(
         nn.Dropout(p=0.5),
         nn.Linear(512, config["NUM_CLASSES"])
@@ -79,10 +79,10 @@ def main():
     # 3. Fine-tune on the 'organs' dataset
     train_loader_tgt, val_loader_tgt, test_loader_tgt = get_loaders(data="organs", data_path=config["DATA_PATH"], batch_size=config["BATCH_SIZE"])
     
-    # Bind all parameters to the optimizer with optimal LR and Weight Decay
+    # Bind all parameters to the optimizer with the new micro-LR and Weight Decay
     optimizer_tgt = optim.Adam(model.parameters(), lr=config["LEARNING_RATE"], weight_decay=1e-3)
     
-    # Sync to config epochs (25)
+    # Sync to config epochs (35)
     trainer_tgt = Trainer(model, criterion, optimizer_tgt, device)
     trainer_tgt.fit(train_loader_tgt, val_loader_tgt, epochs=config["EPOCHS"])
 
