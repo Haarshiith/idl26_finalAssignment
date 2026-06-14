@@ -59,7 +59,10 @@ def main():
     
     # We DO NOT freeze the parameters. We let the whole network adapt.
     # We just give it a fresh classifier for the new dataset.
-    model.classifier = nn.Linear(128, config["NUM_CLASSES"]).to(device)
+    model.model.fc = nn.Sequential(
+        nn.Dropout(p=0.5),
+        nn.Linear(512, config["NUM_CLASSES"]) # 512 is ResNet18's native feature output
+    ).to(device)
 
     # 3. Fine-tune on the 'organs' dataset
     train_loader_tgt, val_loader_tgt, test_loader_tgt = get_loaders(data="organs", data_path=config["DATA_PATH"], batch_size=config["BATCH_SIZE"])
