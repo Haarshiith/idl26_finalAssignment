@@ -16,6 +16,14 @@ def evaluate_test_set(model, test_loader, device):
     with torch.no_grad():
         for images, labels in test_loader:
             images, labels = images.to(device), labels.to(device).squeeze().long()
+            
+            # THE FIX: Bring over the dynamic channel alignment!
+            expected_channels = list(model.parameters())[0].shape[1]
+            if images.size(1) == 3 and expected_channels == 1:
+                images = images.mean(dim=1, keepdim=True)
+            elif images.size(1) == 1 and expected_channels == 3:
+                images = images.repeat(1, 3, 1, 1)
+                
             outputs = model(images)
             _, predicted = outputs.max(1)
             
@@ -69,11 +77,14 @@ def main():
     
     # --- THE FIX: Optimize the ENTIRE network, but use a decayed learning rate (0.5x) ---
     # This gently shifts the learned weights without aggressively destroying them.
-    optimizer_tgt = optim.Adam(model.parameters(), lr=config["LEARNING_RATE"] * 0.1, weight_decay=1e-4)
+    optimizer_tgt = optim.Adam(model.parameters(), lr=config["LEARNING_RATE"], weight_decay=1e-3)
     
     # Train for 20 epochs to ensure full convergence
     trainer_tgt = Trainer(model, criterion, optimizer_tgt, device)
     trainer_tgt.fit(train_loader_tgt, val_loader_tgt, epochs=15)
+
+    # --- THE FIX: Load the optimal weights before final evaluation! ---
+    model.load_state_dict(torch.load("best_model.pth", weights_only=True))
 
     # 4. Generate Final Metrics for the Report
     evaluate_test_set(model, test_loader_tgt, device)
