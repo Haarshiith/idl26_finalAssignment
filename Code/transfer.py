@@ -69,8 +69,7 @@ def main():
     for param in model.parameters():
         param.requires_grad = True
         
-    # THE FIX: Restore the fresh classifier head. 
-    # The new micro-learning rate will prevent the gradient shockwave we saw earlier.
+    # Fresh classifier with 0.5 Dropout
     model.model.fc = nn.Sequential(
         nn.Dropout(p=0.5),
         nn.Linear(512, config["NUM_CLASSES"])
@@ -79,12 +78,14 @@ def main():
     # 3. Fine-tune on the 'organs' dataset
     train_loader_tgt, val_loader_tgt, test_loader_tgt = get_loaders(data="organs", data_path=config["DATA_PATH"], batch_size=config["BATCH_SIZE"])
     
-    # Bind all parameters to the optimizer with the new micro-LR and Weight Decay
-    optimizer_tgt = optim.Adam(model.parameters(), lr=config["LEARNING_RATE"], weight_decay=1e-3)
+    # THE FIX: Warm fine-tuning rate (0.0002) with strict Weight Decay
+    # We remove Label Smoothing to allow the network to confidently map the standard metrics.
+    optimizer_tgt = optim.Adam(model.parameters(), lr=0.0002, weight_decay=1e-3)
+    criterion_tgt = nn.CrossEntropyLoss()
     
-    # Sync to config epochs (35)
-    trainer_tgt = Trainer(model, criterion, optimizer_tgt, device)
-    trainer_tgt.fit(train_loader_tgt, val_loader_tgt, epochs=config["EPOCHS"])
+    # Sync to 20 epochs (update your run_benchmarks.py pairing to EPOCHS: 20)
+    trainer_tgt = Trainer(model, criterion_tgt, optimizer_tgt, device)
+    trainer_tgt.fit(train_loader_tgt, val_loader_tgt, epochs=20)
 
     # Load the optimal weights before final evaluation
     model.load_state_dict(torch.load("best_model.pth", weights_only=True))
