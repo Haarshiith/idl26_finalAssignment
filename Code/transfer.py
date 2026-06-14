@@ -1,5 +1,5 @@
 import json
-from xml.parsers.expat import model
+from logging import config
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -10,6 +10,7 @@ from fit import Trainer
 import torchvision.transforms as T
 import numpy as np
 import os
+import torchvision.models as tv_models
 
 
 def evaluate_test_set(model, test_loader, device):
@@ -67,6 +68,13 @@ def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Executing Knowledge Transfer on: {device}")
 
+    # Bypassing local models.py to guarantee ResNet18 loads correctly
+    model = tv_models.resnet18(weights='DEFAULT')
+    
+    # Adjust the final layer for our 11 classes
+    model.fc = nn.Linear(model.fc.in_features, config["NUM_CLASSES"])
+    model = model.to(device)
+
     # 1. Pre-train on the large 'chest' dataset
     cache_path = "chest_pretrained_base.pth"
     
@@ -95,7 +103,7 @@ def main():
         param.requires_grad = True
         
     # Fresh classifier with 0.5 Dropout
-    model.model.fc = nn.Sequential(
+    model.fc = nn.Sequential(
         nn.Dropout(p=0.5),
         nn.Linear(512, config["NUM_CLASSES"])
     ).to(device)

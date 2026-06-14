@@ -5,7 +5,7 @@ import sys
 
 # 1. Define your master theory of optimal pairings
 pairings = [
-    {"DATA": "organs", "MODEL": "ResNet18", "EPOCHS": 20, "LEARNING_RATE": 0.00005}
+    {"DATA": "orgs", "MODEL": "ResNet18", "EPOCHS": 20, "LEARNING_RATE": 0.00002}
     # {"DATA": "chest", "MODEL": "ResNet18", "EPOCHS": 30, "LEARNING_RATE": 0.001},
     # {"DATA": "cells", "MODEL": "AlexNet", "EPOCHS": 15, "LEARNING_RATE": 0.001},
     # {"DATA": "lesions", "MODEL": "VGG16", "EPOCHS": 30, "LEARNING_RATE": 0.0005}
@@ -39,7 +39,7 @@ def main():
             
         print(f"Config locked. Booting isolated training process...")
 
-        script_to_run = "Code/transfer.py" if pair['DATA'] == "organs" else "Code/train.py"
+        script_to_run = "Code/transfer.py" if pair['DATA'] == "orgs" else "Code/train.py"
         
         # Execute the training script as a separate process to ensure clean GPU VRAM
         try:
