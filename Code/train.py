@@ -2,10 +2,11 @@ import json
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from sklearn.metrics import accuracy_score, precision_recall_fscore_support
+from sklearn.metrics import accuracy_score, precision_recall_fscore_support, confusion_matrix
 from data import get_loaders
 import models
 from fit import Trainer
+import numpy as np
 
 def evaluate_test_set(model, test_loader, device):
     """Calculates final metrics for REPORT.md"""
@@ -24,6 +25,10 @@ def evaluate_test_set(model, test_loader, device):
             elif images.size(1) == 1 and expected_channels == 3:
                 images = images.repeat(1, 3, 1, 1)
                 
+            # --- THE FIX: Normalize the Test Data ---
+            normalize = T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+            images = normalize(images)
+                
             outputs = model(images)
             _, predicted = outputs.max(1)
             
@@ -32,6 +37,13 @@ def evaluate_test_set(model, test_loader, device):
             
     acc = accuracy_score(all_targets, all_preds) * 100
     precision, recall, f1, _ = precision_recall_fscore_support(all_targets, all_preds, average='macro', zero_division=0)
+
+    # Calculate Standard Metrics (TP, FP, TN, FN) across all classes
+    cm = confusion_matrix(all_targets, all_preds)
+    TP = np.diag(cm).sum()
+    FP = (cm.sum(axis=0) - np.diag(cm)).sum()
+    FN = (cm.sum(axis=1) - np.diag(cm)).sum()
+    TN = cm.sum() - (FP + FN + TP)
     
     print("\n" + "="*50)
     print("FINAL TEST SET METRICS FOR REPORT.MD")
@@ -40,6 +52,8 @@ def evaluate_test_set(model, test_loader, device):
     print(f"Precision: {precision:.4f}")
     print(f"Recall:    {recall:.4f}")
     print(f"Macro F1:  {f1:.4f}")
+    print("-" * 50)
+    print(f"Standard Metrics Total -> Correct (TP): {TP} | Misclassified: {FP}")
     print("="*50 + "\n")
 
 def main():   

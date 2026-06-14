@@ -2,10 +2,12 @@ import json
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from sklearn.metrics import accuracy_score, precision_recall_fscore_support
+from sklearn.metrics import accuracy_score, precision_recall_fscore_support, confusion_matrix
 from data import get_loaders
 import models
 from fit import Trainer
+import numpy as np
+
 
 def evaluate_test_set(model, test_loader, device):
     """Calculates final metrics for REPORT.md"""
@@ -17,12 +19,16 @@ def evaluate_test_set(model, test_loader, device):
         for images, labels in test_loader:
             images, labels = images.to(device), labels.to(device).squeeze().long()
             
-            # THE FIX: Bring over the dynamic channel alignment!
+            # Dynamic Channel Alignment
             expected_channels = list(model.parameters())[0].shape[1]
             if images.size(1) == 3 and expected_channels == 1:
                 images = images.mean(dim=1, keepdim=True)
             elif images.size(1) == 1 and expected_channels == 3:
                 images = images.repeat(1, 3, 1, 1)
+                
+            # --- THE FIX: Normalize the Test Data ---
+            normalize = T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+            images = normalize(images)
                 
             outputs = model(images)
             _, predicted = outputs.max(1)
@@ -48,7 +54,7 @@ def evaluate_test_set(model, test_loader, device):
     print(f"Recall:    {recall:.4f}")
     print(f"Macro F1:  {f1:.4f}")
     print("-" * 50)
-    print(f"Standard Metrics Total -> TP: {TP} | FP: {FP} | TN: {TN} | FN: {FN}")
+    print(f"Standard Metrics Total -> Correct (TP): {TP} | Misclassified: {FP}")
     print("="*50 + "\n")
 
 def main():
