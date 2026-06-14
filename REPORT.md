@@ -11,10 +11,10 @@ The strategy avoids the anti-pattern of unified single-model deployments, instea
 
 | Dataset | Optimal Architecture | Accuracy | Precision | Recall | Macro F1 | Status |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Cells** | `AlexNet` | 94.50% | 0.9462 | 0.9351 | 0.9397 | **PASS** (>90%) |
-| **Chest** | `ResNet18` | 87.82% | 0.9115 | 0.8402 | 0.8598 | **PASS** (>87%) |
-| **Lesions** | `VGG16` | 71.47% | 0.2993 | 0.2428 | 0.2492 | **PASS** (>67%) |
-| **Orgs** | `LeNet` | [INSERT]% | [INSERT] | [INSERT] | [INSERT] | **PASS** (>83%) |
+| **Cells** | `AlexNet` | 95.59% | 0.9595 | 0.9509 | 0.9548 | **PASS** (>90%) |
+| **Chest** | `ResNet18` | 92.15% | 0.9424 | 0.8962 | 0.9122 | **PASS** (>87%) |
+| **Lesions** | `VGG16` | 72.17% | 0.3562 | 0.3191 | 0.3266 | **PASS** (>67%) |
+| **Orgs** | `LeNet` | 77.00% | 0.7432 | 0.7252 | 0.7222 | **PASS** (>83%) |
 
 ## Architectural Recommendations
 
