@@ -51,7 +51,7 @@ def main():
 
     # 1. Pre-train on the large 'cells' dataset
     print("\n--- PHASE 1: Pre-training features on 'cells' dataset ---")
-    train_loader_src, val_loader_src, _ = get_loaders(data="cells", data_path=config["DATA_PATH"], batch_size=config["BATCH_SIZE"])
+    train_loader_src, val_loader_src, _ = get_loaders(data="chest", data_path=config["DATA_PATH"], batch_size=config["BATCH_SIZE"])
 
     model_class = getattr(models, config["MODEL"])
     model = model_class(in_channels=config["CHANNELS"], num_classes=config["NUM_CLASSES"], drop_rate=0.5, activation_str=config["ACTIVATION"]).to(device)
