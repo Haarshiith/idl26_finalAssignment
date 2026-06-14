@@ -27,13 +27,13 @@ def get_loaders(data, data_path, batch_size, val_split=0.1):
     val_labels   = labels[val_start:]
 
     # Input normalization (z-score). Statistics computed on TRAIN ONLY, then applied to all splits.
-    mean = train_data.mean(dim=[0, 2, 3], keepdim=True)   # per-channel mean -> shape [1, C, 1, 1]
-    std  = train_data.std(dim=[0, 2, 3], keepdim=True)
-    std  = std.clamp(min=1e-7)                            # guard against divide-by-zero
+    # mean = train_data.mean(dim=[0, 2, 3], keepdim=True)   # per-channel mean -> shape [1, C, 1, 1]
+    # std  = train_data.std(dim=[0, 2, 3], keepdim=True)
+    # std  = std.clamp(min=1e-7)                            # guard against divide-by-zero
 
-    train_data  = (train_data  - mean) / std
-    val_data    = (val_data    - mean) / std
-    test_images = (test_images - mean) / std             # same train stats applied to test
+    # train_data  = (train_data  - mean) / std
+    # val_data    = (val_data    - mean) / std
+    # test_images = (test_images - mean) / std             # same train stats applied to test
 
     train_dataset = TensorDataset(train_data, train_labels)
     val_dataset   = TensorDataset(val_data, val_labels)
