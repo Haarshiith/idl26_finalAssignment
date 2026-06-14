@@ -29,7 +29,7 @@ class Trainer:
                 images = images.repeat(1, 3, 1, 1)
             
             augmentations = T.Compose([
-                T.RandomAffine(degrees=0, translate=(0.1, 0.1))
+                T.RandomAffine(degrees=0, translate=(0.08, 0.08))
             ])
             images = augmentations(images)
             

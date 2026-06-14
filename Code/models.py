@@ -134,28 +134,35 @@ class VGG16(nn.Module):
 
 
 class ResNet18(nn.Module):
-    """ResNet18 natively adapted for 28x28 images (The Small-Image Stem Hack)."""
+    """ResNet18 utilizing Gentle Fine-Tuning and strict ImageNet input normalization."""
     def __init__(self, in_channels=1, num_classes=11, **kwargs):
         super(ResNet18, self).__init__()
         
-        # 1. Load the ResNet18 skeleton (Untrained, training from scratch)
-        self.model = tv_models.resnet18(pretrained=False)
+        # 1. Load Pre-trained weights using the modern PyTorch syntax (fixes deprecation warning)
+        self.model = tv_models.resnet18(weights=tv_models.ResNet18_Weights.IMAGENET1K_V1)
         
-        # 2. THE STEM HACK: Replace the massive 7x7 ImageNet convolution 
-        # with a gentle 3x3 convolution to process the 28x28 pixels directly.
-        self.model.conv1 = nn.Conv2d(in_channels, 64, kernel_size=3, stride=1, padding=1, bias=False)
-        
-        # 3. Prevent Spatial Crushing: Remove the initial MaxPool entirely
-        self.model.maxpool = nn.Identity()
-        
-        # 4. Map the final classifier to our 11 organs
+        # 2. Unfreeze all layers for domain adaptation
+        for param in self.model.parameters():
+            param.requires_grad = True
+            
+        # 3. Gentle Dropout on the classifier head
         self.model.fc = nn.Sequential(
-            nn.Dropout(p=0.5), # Forces the 11M parameters to generalize
+            nn.Dropout(p=0.5),
             nn.Linear(self.model.fc.in_features, num_classes)
         )
+        
+        # 4. ImageNet Normalization Constants
+        self.register_buffer('mean', torch.tensor([0.485, 0.456, 0.406]).view(1, 3, 1, 1))
+        self.register_buffer('std', torch.tensor([0.229, 0.224, 0.225]).view(1, 3, 1, 1))
 
     def forward(self, x):
-        # No upsampling needed! The network natively processes the crisp 28x28 images.
+        # Upsample to native 224x224 resolution
+        if x.size(2) < 224 or x.size(3) < 224:
+            x = F.interpolate(x, size=(224, 224), mode='bilinear', align_corners=False)
+            
+        # Apply strict ImageNet normalization
+        x = (x - self.mean) / self.std
+            
         return self.model(x)
 
 class VGG16(nn.Module):
