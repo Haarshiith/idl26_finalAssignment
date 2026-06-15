@@ -20,12 +20,12 @@ class Trainer:
         for images, labels in dataloader:
             images, labels = images.to(self.device), labels.to(self.device)
 
-            self.optimizer.zero_grad()      # FIX: clear gradients before each batch
-            outputs = self.model(images)
-            loss = self.criterion(outputs, labels)
+            # self.optimizer.zero_grad()       # 1. clear old gradients
+            outputs = self.model(images)     # 2. forward pass (make predictions)
+            loss = self.criterion(outputs, labels) # 3. measure the error
 
-            loss.backward()
-            self.optimizer.step()
+            loss.backward()             # 4. compute new gradients
+            self.optimizer.step()      # 5. update the weights
 
             running_loss += loss.item() * images.size(0)
             _, predicted = outputs.max(1)
