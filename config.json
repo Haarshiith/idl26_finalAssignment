@@ -4,8 +4,8 @@
     "CHANNELS": 1,
     "NUM_CLASSES": 11,
     "ACTIVATION": "ReLU",
-    "DATA": "organs",
+    "DATA": "chest",
     "MODEL": "ResNet18",
-    "EPOCHS": 25,
-    "LEARNING_RATE": 0.0001
+    "EPOCHS": 15,
+    "LEARNING_RATE": 0.001
 }

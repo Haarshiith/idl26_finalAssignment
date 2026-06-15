@@ -2,6 +2,22 @@
 
 This document itemizes all critical failures discovered in the BioHealth Diagnostics Global machine learning pipeline, documenting the root causes and applied mathematical/structural corrections.
 
+## Dataset Profile (Pre-Audit Reconnaissance)
+
+Recovered datasets, profiled via `inspect_data.py` before any code modification:
+
+| Dataset | Channels | Image size | Classes | Train samples | Test samples |
+|---|---|---|---|---|---|
+| cells   | 3 | 64×64 | 8  | 13,671 | 3,421 |
+| chest   | 1 | 64×64 | 2  | 5,232  | 624   |
+| lesions | 3 | 64×64 | 7  | 8,010  | 2,005 |
+| orgs    | 1 | 64×64 | 11 | 15,367 | 8,216 |
+| organs  | 1 | 64×64 | 11 | 500    | 200   |
+
+All image tensors are `float32` in range `[0, 1]`. All label tensors are `int64` with shape `(N, 1)`.
+
+## Bug Inventory
+
 | Issue ID | File Name | Manifestation (The Error) | Mathematical / Logical Root Cause | Implemented Structural Correction | Git Commit Hash |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | 001 | `data.py` | Validation accuracy is artificially high and untrustworthy. | The training array (`data_dict['train_images']`) was never truncated after extracting the validation split, causing 100% of the validation set to leak into the training environment. | Applied list slicing `[:val_start]` to explicitly isolate the training bounds from the validation boundaries. | 54844ed |

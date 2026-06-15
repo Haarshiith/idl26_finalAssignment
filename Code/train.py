@@ -26,8 +26,12 @@ def evaluate_test_set(model, test_loader, device):
             elif images.size(1) == 1 and expected_channels == 3:
                 images = images.repeat(1, 3, 1, 1)
                 
-            # --- THE FIX: Normalize the Test Data ---
-            normalize = T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+            # Dynamic Normalization based on the aligned channels
+            if images.size(1) == 1:
+                normalize = T.Normalize(mean=[0.485], std=[0.229])
+            else:
+                normalize = T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+                
             images = normalize(images)
                 
             outputs = model(images)
@@ -39,12 +43,10 @@ def evaluate_test_set(model, test_loader, device):
     acc = accuracy_score(all_targets, all_preds) * 100
     precision, recall, f1, _ = precision_recall_fscore_support(all_targets, all_preds, average='macro', zero_division=0)
 
-    # Calculate Standard Metrics (TP, FP, TN, FN) across all classes
+    # Calculate aggregate confusion matrix metrics for the report
     cm = confusion_matrix(all_targets, all_preds)
     TP = np.diag(cm).sum()
     FP = (cm.sum(axis=0) - np.diag(cm)).sum()
-    FN = (cm.sum(axis=1) - np.diag(cm)).sum()
-    TN = cm.sum() - (FP + FN + TP)
     
     print("\n" + "="*50)
     print("FINAL TEST SET METRICS FOR REPORT.MD")
@@ -64,7 +66,6 @@ def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Training executing on device: {device}")
 
-    # Notice we now unpack the test_loader too!
     train_loader, val_loader, test_loader = get_loaders(data=config["DATA"], data_path=config["DATA_PATH"], batch_size=config["BATCH_SIZE"])
 
     model_class = getattr(models, config["MODEL"])

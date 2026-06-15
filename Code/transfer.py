@@ -1,5 +1,4 @@
 import json
-from logging import config
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -30,8 +29,12 @@ def evaluate_test_set(model, test_loader, device):
             elif images.size(1) == 1 and expected_channels == 3:
                 images = images.repeat(1, 3, 1, 1)
                 
-            # --- THE FIX: Normalize the Test Data ---
-            normalize = T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+            # Dynamic Normalization based on the aligned channels
+            if images.size(1) == 1:
+                normalize = T.Normalize(mean=[0.485], std=[0.229])
+            else:
+                normalize = T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+                
             images = normalize(images)
                 
             outputs = model(images)
@@ -43,12 +46,10 @@ def evaluate_test_set(model, test_loader, device):
     acc = accuracy_score(all_targets, all_preds) * 100
     precision, recall, f1, _ = precision_recall_fscore_support(all_targets, all_preds, average='macro', zero_division=0)
 
-    # Calculate Standard Metrics (TP, FP, TN, FN) across all classes
+    # Calculate aggregate confusion matrix metrics
     cm = confusion_matrix(all_targets, all_preds)
     TP = np.diag(cm).sum()
     FP = (cm.sum(axis=0) - np.diag(cm)).sum()
-    FN = (cm.sum(axis=1) - np.diag(cm)).sum()
-    TN = cm.sum() - (FP + FN + TP)
     
     print("\n" + "="*50)
     print("FINAL TEST SET METRICS FOR REPORT.MD")
@@ -68,18 +69,15 @@ def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Executing Knowledge Transfer on: {device}")
 
-    # Bypassing local models.py to guarantee ResNet18 loads correctly
+    # Load torchvision ResNet18 backbone with pretrained weights
     model = tv_models.resnet18(weights='DEFAULT')
-    
-    # Adjust the final layer for our 11 classes
     model.fc = nn.Linear(model.fc.in_features, config["NUM_CLASSES"])
     model = model.to(device)
 
-    # 1. Pre-train on the large 'chest' dataset
+    # Phase 1: Source Domain Pre-training (Chest Dataset)
     cache_path = "chest_pretrained_base.pth"
     
     if os.path.exists(cache_path):
-        print(f"\n[MLOps] Found cached Phase 1 weights at '{cache_path}'. Bypassing redundant training loop...")
         model.load_state_dict(torch.load(cache_path, weights_only=True))
     else:
         print("\n--- PHASE 1: Pre-training features on 'chest' dataset ---")
@@ -91,39 +89,28 @@ def main():
         trainer_src = Trainer(model, criterion_src, optimizer_src, device)
         trainer_src.fit(train_loader_src, val_loader_src, epochs=15)
         
-        # Save the perfected Phase 1 weights to the hard drive so we never have to calculate them again
         torch.save(model.state_dict(), cache_path)
         print(f"\n[MLOps] Phase 1 weights cached successfully to '{cache_path}'.")
 
-    # 2. Prepare for Full-Network Fine-Tuning
-    print("\n--- PHASE 2: Adapting architecture for 'organs' ---")
-    
-    # Fully Unfreeze the Backbone
+    # Phase 2: Target Domain Fine-Tuning (Orgs Dataset)
     for param in model.parameters():
         param.requires_grad = True
         
-    # Fresh classifier with 0.5 Dropout
     model.fc = nn.Sequential(
         nn.Dropout(p=0.5),
         nn.Linear(512, config["NUM_CLASSES"])
     ).to(device)
 
-    # 3. Fine-tune on the 'organs' dataset
     train_loader_tgt, val_loader_tgt, test_loader_tgt = get_loaders(data="orgs", data_path=config["DATA_PATH"], batch_size=config["BATCH_SIZE"])
     
-    # THE FIX: Warm fine-tuning rate (0.0002) with strict Weight Decay
-    # We remove Label Smoothing to allow the network to confidently map the standard metrics.
     optimizer_tgt = optim.Adam(model.parameters(), lr=0.0002, weight_decay=1e-3)
     criterion_tgt = nn.CrossEntropyLoss()
     
-    # Sync to 20 epochs (update your run_benchmarks.py pairing to EPOCHS: 20)
     trainer_tgt = Trainer(model, criterion_tgt, optimizer_tgt, device)
     trainer_tgt.fit(train_loader_tgt, val_loader_tgt, epochs=20)
 
     # Load the optimal weights before final evaluation
     model.load_state_dict(torch.load("best_model.pth", weights_only=True))
-
-    # 4. Generate Final Metrics for the Report
     evaluate_test_set(model, test_loader_tgt, device)
 
 if __name__ == "__main__":

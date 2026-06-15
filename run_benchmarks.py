@@ -3,15 +3,15 @@ import subprocess
 import time
 import sys
 
-# 1. Define your master theory of optimal pairings
+# Optimal architecture pairings based on dataset characteristics and preliminary experiments
 pairings = [
-    {"DATA": "orgs", "MODEL": "ResNet18", "EPOCHS": 20, "LEARNING_RATE": 0.00002}
-    # {"DATA": "chest", "MODEL": "ResNet18", "EPOCHS": 30, "LEARNING_RATE": 0.001},
-    # {"DATA": "cells", "MODEL": "AlexNet", "EPOCHS": 15, "LEARNING_RATE": 0.001},
-    # {"DATA": "lesions", "MODEL": "VGG16", "EPOCHS": 30, "LEARNING_RATE": 0.0005}
+    {"DATA": "cells", "MODEL": "AlexNet", "EPOCHS": 10, "LEARNING_RATE": 0.001},
+    {"DATA": "chest", "MODEL": "ResNet18", "EPOCHS": 15, "LEARNING_RATE": 0.001},
+    {"DATA": "lesions", "MODEL": "VGG16", "EPOCHS": 15, "LEARNING_RATE": 0.0005},
+    {"DATA": "orgs", "MODEL": "ResNet18", "EPOCHS": 20, "LEARNING_RATE": 0.0002}
 ]
 
-# 2. Define the static pipeline constants
+# Base configuration that applies to all benchmarks, with specific pairings overriding as needed
 base_config = {
     "DATA_PATH": "data",
     "BATCH_SIZE": 16,
@@ -41,7 +41,7 @@ def main():
 
         script_to_run = "Code/transfer.py" if pair['DATA'] == "orgs" else "Code/train.py"
         
-        # Execute the training script as a separate process to ensure clean GPU VRAM
+        # Execute as a separate process to ensure clean GPU VRAM between runs
         try:
             subprocess.run([sys.executable, script_to_run], check=True)
         except subprocess.CalledProcessError:

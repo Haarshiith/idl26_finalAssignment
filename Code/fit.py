@@ -23,14 +23,22 @@ class Trainer:
             images, labels = images.to(self.device), labels.to(self.device).squeeze().long()
 
             expected_channels = list(self.model.parameters())[0].shape[1]
+
+            # Dynamic channel alignment to ensure compatibility with the model's expected input
             if images.size(1) == 3 and expected_channels == 1:
                 images = images.mean(dim=1, keepdim=True)
             elif images.size(1) == 1 and expected_channels == 3:
                 images = images.repeat(1, 3, 1, 1)
-            
+
+            # Dynamic normalization based on the aligned channels
+            if images.size(1) == 1:
+                norm = T.Normalize(mean=[0.485], std=[0.229]) # Grayscale
+            else:
+                norm = T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]) # RGB
+
             augmentations = T.Compose([
                 T.RandomAffine(degrees=0, translate=(0.08, 0.08)),
-                T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+                norm
             ])
             images = augmentations(images)
             
@@ -60,12 +68,19 @@ class Trainer:
                 images, labels = images.to(self.device), labels.to(self.device).squeeze().long()
 
                 expected_channels = list(self.model.parameters())[0].shape[1]
+                
+                # Dynamic channel alignment
                 if images.size(1) == 3 and expected_channels == 1:
                     images = images.mean(dim=1, keepdim=True)
                 elif images.size(1) == 1 and expected_channels == 3:
                     images = images.repeat(1, 3, 1, 1)
                 
-                normalize = T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+                # Dynamic normalization
+                if images.size(1) == 1:
+                    normalize = T.Normalize(mean=[0.485], std=[0.229])
+                else:
+                    normalize = T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+                
                 images = normalize(images)
                 
                 outputs = self.model(images)

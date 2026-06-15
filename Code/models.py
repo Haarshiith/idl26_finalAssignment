@@ -42,7 +42,6 @@ class ResBlock(nn.Module):
         self.conv2 = nn.Conv2d(out_channels, out_channels, kernel_size=3, stride=1, padding=1, bias=False)
         self.bn2 = nn.BatchNorm2d(out_channels)
 
-        # If spatial size shrinks (stride > 1) or channels change, adjust the shortcut
         self.shortcut = nn.Identity()
         if stride != 1 or in_channels != out_channels:
             self.shortcut = nn.Sequential(
@@ -103,73 +102,9 @@ class AlexNet(nn.Module):
 
 
 class VGG16(nn.Module):
-    """VGG16 in C configuration of Simonyan & Zisserman, (2014) adapted for smaller inputs."""
-    def __init__(self, in_channels, num_classes, **kwargs):
-        super().__init__()
-
-        drop_rate = kwargs.get("drop_rate", 0.5)
-
-        self.features = nn.Sequential(
-            VGGBlock(in_channels, 64, num_convs=2),
-            VGGBlock(64, 128, num_convs=2),
-            VGGBlock(128, 256, num_convs=3),
-            VGGBlock(256, 512, num_convs=3),
-            VGGBlock(512, 512, num_convs=3)
-        )
-        
-        self.classifier = nn.Sequential(
-            nn.Linear(2048, 1024),
-            nn.ReLU(inplace=True),
-            nn.Dropout(p=drop_rate),
-            nn.Linear(1024, 512),
-            nn.ReLU(inplace=True),
-            nn.Dropout(p=drop_rate),
-            nn.Linear(512, num_classes)
-        )
-
-    def forward(self, x):
-        x = self.features(x)
-        x = torch.flatten(x, 1)
-        return self.classifier(x)
-
-
-class ResNet18(nn.Module):
-    """ResNet18 utilizing Gentle Fine-Tuning and strict ImageNet input normalization."""
-    def __init__(self, in_channels=1, num_classes=11, **kwargs):
-        super(ResNet18, self).__init__()
-        
-        # 1. Load Pre-trained weights using the modern PyTorch syntax (fixes deprecation warning)
-        self.model = tv_models.resnet18(weights=tv_models.ResNet18_Weights.IMAGENET1K_V1)
-        
-        # 2. Unfreeze all layers for domain adaptation
-        for param in self.model.parameters():
-            param.requires_grad = True
-            
-        # 3. Gentle Dropout on the classifier head
-        self.model.fc = nn.Sequential(
-            nn.Dropout(p=0.5),
-            nn.Linear(self.model.fc.in_features, num_classes)
-        )
-        
-        # 4. ImageNet Normalization Constants
-        self.register_buffer('mean', torch.tensor([0.485, 0.456, 0.406]).view(1, 3, 1, 1))
-        self.register_buffer('std', torch.tensor([0.229, 0.224, 0.225]).view(1, 3, 1, 1))
-
-    def forward(self, x):
-        # Upsample to native 224x224 resolution
-        if x.size(2) < 224 or x.size(3) < 224:
-            x = F.interpolate(x, size=(224, 224), mode='bilinear', align_corners=False)
-            
-        # Apply strict ImageNet normalization
-        x = (x - self.mean) / self.std
-            
-        return self.model(x)
-
-class VGG16(nn.Module):
     def __init__(self, in_channels=1, num_classes=11, **kwargs):
         super(VGG16, self).__init__()
         
-        # The configuration structure for a standard VGG16
         cfg = [64, 64, 'M', 128, 128, 'M', 256, 256, 256, 'M', 512, 512, 512, 'M', 512, 512, 512, 'M']
         
         layers = []
@@ -182,7 +117,6 @@ class VGG16(nn.Module):
             if v == 'M':
                 layers += [nn.MaxPool2d(kernel_size=2, stride=2)]
             else:
-                # FIX: Use current_channels instead of a hardcoded initial value!
                 activation = getattr(nn, activation_str)
 
                 layers += [
@@ -190,11 +124,9 @@ class VGG16(nn.Module):
                     nn.BatchNorm2d(v),
                     activation(inplace=True)
                 ]
-                current_channels = v # FIX: Move the pointer forward to the new output channel size
+                current_channels = v
                 
-        self.features = nn.Sequential(*layers)
-        
-        # Adaptive pooling ensures a stable input size for the linear classifier
+        self.features = nn.Sequential(*layers)        
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
         
         self.classifier = nn.Sequential(
@@ -213,6 +145,29 @@ class VGG16(nn.Module):
         x = torch.flatten(x, 1)
         x = self.classifier(x)
         return x
+
+
+class ResNet18(nn.Module):
+    """ResNet18 utilizing Gentle Fine-Tuning and strict ImageNet input normalization."""
+    def __init__(self, in_channels=1, num_classes=11, **kwargs):
+        super(ResNet18, self).__init__()
+        
+        self.model = tv_models.resnet18(weights=tv_models.ResNet18_Weights.IMAGENET1K_V1)
+        
+        for param in self.model.parameters():
+            param.requires_grad = True
+            
+        self.model.fc = nn.Sequential(
+            nn.Dropout(p=0.5),
+            nn.Linear(self.model.fc.in_features, num_classes)
+        )
+
+    def forward(self, x):
+        if x.size(2) < 224 or x.size(3) < 224:
+            x = F.interpolate(x, size=(224, 224), mode='bilinear', align_corners=False)
+            
+        return self.model(x)
+    
 
 class LeNet(nn.Module):
     """Modern LeNet-5: Restored FC layers for parameter capacity, stabilized with BatchNorm & Dropout."""
@@ -236,7 +191,6 @@ class LeNet(nn.Module):
         
         self.avgpool = nn.AdaptiveAvgPool2d((5, 5))
         
-        # Restoring the 400-feature pipeline with balanced 0.3 Dropout
         self.classifier = nn.Sequential(
             nn.Flatten(),
             nn.Linear(16 * 5 * 5, 120),
