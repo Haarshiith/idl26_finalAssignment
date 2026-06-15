@@ -20,7 +20,7 @@ class Trainer:
         for images, labels in dataloader:
             images, labels = images.to(self.device), labels.to(self.device)
 
-            # self.optimizer.zero_grad()       # 1. clear old gradients
+            self.optimizer.zero_grad()       # 1. clear old gradients
             outputs = self.model(images)     # 2. forward pass (make predictions)
             loss = self.criterion(outputs, labels) # 3. measure the error
 
