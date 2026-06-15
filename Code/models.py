@@ -6,7 +6,7 @@ MG 6/6/2026
 import torch
 import torch.nn as nn
 
-activation_str = "Identity"  # NOTE (Phase 2): "Identity" = no nonlinearity -> ResNet can't learn. Change to "ReLU".
+activation_str = "ReLU"  # NOTE (Phase 2): "Identity" = no nonlinearity -> ResNet can't learn. Change to "ReLU".
 
 
 class VGGBlock(nn.Module):
