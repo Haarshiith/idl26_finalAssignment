@@ -138,7 +138,10 @@ class VGG16(nn.Module):
 
 
 class ResNet18(nn.Module):
-    """ResNet18 (He et al., 2016) adapted for smaller inputs."""
+    """ResNet18 (He et al., 2016) adapted for smaller inputs.
+    
+    activation - flexible activation function to allow experimentation (e.g., ReLU, LeakyReLU, etc.)
+    """
     def __init__(self, in_channels, num_classes, **kwargs):
         super().__init__()
 
