@@ -13,27 +13,28 @@ class Trainer:
         self.device = device
 
     def train_one_epoch(self, dataloader):
+
         self.model.train()
         running_loss = 0.0
-        correct, total = 0, 0   # renamed from 'sum' (which shadowed the builtin)
-
+        correct, sum = 0, 0
+        
         for images, labels in dataloader:
             images, labels = images.to(self.device), labels.to(self.device)
-
-            self.optimizer.zero_grad()       # 1. clear old gradients
-            outputs = self.model(images)     # 2. forward pass (make predictions)
-            loss = self.criterion(outputs, labels) # 3. measure the error
-
-            loss.backward()             # 4. compute new gradients
-            self.optimizer.step()      # 5. update the weights
-
+            
+            self.optimizer.zero_grad()  # FIX: clear gradients from previous batch
+            outputs = self.model(images)
+            loss = self.criterion(outputs, labels)
+            
+            loss.backward()
+            self.optimizer.step()
+            
             running_loss += loss.item() * images.size(0)
             _, predicted = outputs.max(1)
-            total += labels.size(0)
+            sum += labels.size(0)
             correct += predicted.eq(labels).sum().item()
-
-        return running_loss / total, (correct / total) * 100
-
+            
+        return running_loss / sum, (correct / sum) * 100
+ 
     def evaluate(self, dataloader):
         self.model.eval()
         running_loss = 0.0
