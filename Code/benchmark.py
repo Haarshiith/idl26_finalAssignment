@@ -53,6 +53,10 @@ def main():
 
     # warm-up pass: the FIRST inference triggers one-time GPU/cuDNN setup,
     # which would inflate the timing. Run one batch first and don't measure it.
+    optimizer.zero_grad(set_to_none=True)   # drop the stored gradients
+    del optimizer, trainer                  # release Adam's internal state
+    if device.type == "cuda":
+        torch.cuda.empty_cache()
     with torch.no_grad():
         for images, _ in test_loader:
             model(images.to(device))
