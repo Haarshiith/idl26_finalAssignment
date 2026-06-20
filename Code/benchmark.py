@@ -1,6 +1,6 @@
 """
 Part 2 - Green Initiative: efficiency profiling.
-Profiles the TRAINING phase: total runtime + peak memory.
+Profiles TRAINING (runtime + peak memory) and INFERENCE (latency per sample + peak memory).
 """
 import json
 import time
@@ -34,23 +34,57 @@ def main():
 
     # ---- profile the TRAINING phase ----
     if device.type == "cuda":
-        torch.cuda.reset_peak_memory_stats(device)   # start the memory high-water mark fresh
-        torch.cuda.synchronize(device)               # make sure GPU is idle before we start timing
+        torch.cuda.reset_peak_memory_stats(device)
+        torch.cuda.synchronize(device)
 
     start = time.perf_counter()
     trainer.fit(train_loader, val_loader, epochs=config["EPOCHS"])
     if device.type == "cuda":
-        torch.cuda.synchronize(device)               # wait for ALL GPU work to finish before stopping clock
+        torch.cuda.synchronize(device)
     train_runtime = time.perf_counter() - start
 
     if device.type == "cuda":
-        peak_train_mem = torch.cuda.max_memory_allocated(device) / (1024 ** 2)  # bytes -> MB
+        peak_train_mem = torch.cuda.max_memory_allocated(device) / (1024 ** 2)
     else:
-        peak_train_mem = float("nan")  # CPU has no equivalent
+        peak_train_mem = float("nan")
 
-    print("\n--- Efficiency (training phase) ---")
-    print(f"Total training runtime : {train_runtime:.2f} s")
-    print(f"Peak training memory   : {peak_train_mem:.1f} MB")
+    # ---- profile the INFERENCE phase ----
+    model.eval()
+
+    # warm-up pass: the FIRST inference triggers one-time GPU/cuDNN setup,
+    # which would inflate the timing. Run one batch first and don't measure it.
+    with torch.no_grad():
+        for images, _ in test_loader:
+            model(images.to(device))
+            break
+
+    if device.type == "cuda":
+        torch.cuda.reset_peak_memory_stats(device)   # reset gauge for the inference phase
+        torch.cuda.synchronize(device)
+
+    num_samples = 0
+    start = time.perf_counter()
+    with torch.no_grad():                            # no gradients needed for prediction
+        for images, _ in test_loader:
+            model(images.to(device))
+            num_samples += images.size(0)
+    if device.type == "cuda":
+        torch.cuda.synchronize(device)
+    infer_runtime = time.perf_counter() - start
+
+    latency_ms = (infer_runtime / num_samples) * 1000   # total time / samples -> ms per sample
+
+    if device.type == "cuda":
+        peak_infer_mem = torch.cuda.max_memory_allocated(device) / (1024 ** 2)
+    else:
+        peak_infer_mem = float("nan")
+
+    # ---- report ----
+    print("\n--- Efficiency Summary ---")
+    print(f"Total training runtime  : {train_runtime:.2f} s")
+    print(f"Peak training memory    : {peak_train_mem:.1f} MB")
+    print(f"Inference latency       : {latency_ms:.3f} ms/sample")
+    print(f"Peak inference memory   : {peak_infer_mem:.1f} MB")
 
 
 if __name__ == "__main__":
