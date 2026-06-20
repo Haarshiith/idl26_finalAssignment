@@ -16,7 +16,7 @@ def get_loaders(data, data_path, batch_size, val_split=0.1):
     val_start = total_samples - val_size
 
     train_data = data_dict['train_images'][:val_start]               # FIX (leak): exclude val slice
-    train_labels = data_dict['train_labels'][:val_start].squeeze(1)  # FIX: [N,1] -> [N]
+    train_labels = data_dict['train_labels'][:val_start].squeeze(1)  # FIX: [N,1] -> [N] [3 , 2 , 1] 
     val_data = data_dict['train_images'][val_start:]
     val_labels = data_dict['train_labels'][val_start:].squeeze(1)    # FIX: [N,1] -> [N]
 
