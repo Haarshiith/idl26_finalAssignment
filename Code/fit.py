@@ -54,17 +54,25 @@ class Trainer:
 
         return running_loss / total, (correct / total) * 100
 
-    def fit(self, train_loader, val_loader, epochs):
+    def fit(self, train_loader, val_loader, epochs, checkpoint_path="best_model.pt"):
         print("\n Starting Training Routine...")
         print("-" * 50)
 
+        best_val_acc = 0.0
         for epoch in range(epochs):
             train_loss, train_acc = self.train_one_epoch(train_loader)
             val_loss, val_acc = self.evaluate(val_loader)
+
+            if val_acc > best_val_acc:                       # checkpoint: save weights when val improves
+                best_val_acc = val_acc
+                torch.save(self.model.state_dict(), checkpoint_path)
 
             print(f"Epoch [{epoch+1:02d}/{epochs:02d}] | "
                   f"Train Loss: {train_loss:.4f} - Train Acc: {train_acc:.2f}% | "
                   f"Val Loss: {val_loss:.4f} - Val Acc: {val_acc:.2f}%")
 
+        # restore the BEST weights so the model ends in its best state, not the final-epoch state
+        self.model.load_state_dict(torch.load(checkpoint_path))
+
         print("-" * 50)
-        print("Training Complete!")
+        print(f"Training Complete! Best Val Acc: {best_val_acc:.2f}%")
