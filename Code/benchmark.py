@@ -7,7 +7,8 @@ import json
 import time
 import csv
 import os
-
+import random              # <-- NEW
+import numpy as np  
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -16,8 +17,14 @@ from data import get_loaders
 import models
 from fit import Trainer
 
+def set_seed(seed=42):     # <-- NEW: define the function here, after imports
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
 
 def main():
+    set_seed() 
     with open("config.json", "r") as f:
         config = json.load(f)
 
