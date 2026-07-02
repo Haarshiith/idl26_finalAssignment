@@ -20,9 +20,18 @@ def get_loaders(data, data_path, batch_size, val_split=0.1):
     val_data = data_dict['train_images'][val_start:]
     val_labels = data_dict['train_labels'][val_start:].squeeze(1)    # FIX: [N,1] -> [N]
 
+    # --- input normalization: z-score using TRAIN-only statistics ---
+    mean = train_data.mean()
+    std = train_data.std()
+    train_data = (train_data - mean) / std
+    val_data = (val_data - mean) / std
+    # apply the SAME train stats to test (below)
+
     train_dataset = TensorDataset(train_data, train_labels)
     val_dataset = TensorDataset(val_data, val_labels)
-    test_dataset = TensorDataset(data_dict['test_images'], data_dict['test_labels'].squeeze(1))  # FIX: [N,1] -> [N]
+    test_images = (data_dict['test_images'] - mean) / std                        # test uses the SAME train stats
+    test_dataset = TensorDataset(test_images, data_dict['test_labels'].squeeze(1))
+    # test_dataset = TensorDataset(data_dict['test_images'], data_dict['test_labels'].squeeze(1))  # FIX: [N,1] -> [N]
 
     train_loader = DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=True)
     val_loader = DataLoader(dataset=val_dataset, batch_size=batch_size, shuffle=False)
