@@ -185,9 +185,9 @@ class ResNet18(nn.Module):
     
 class GreenNet(nn.Module):
     """
-    Lightweight 'green' architecture (Part 2 - Green Initiative).
-    Uses only layers present in the provided models: Conv2d, BatchNorm2d,
-    ReLU, MaxPool2d, AdaptiveAvgPool2d, Dropout, Linear.
+    Lightweight 'green' architecture (Part 2).
+    Normalizes its own inputs internally, so the shared data pipeline stays
+    untouched for the baseline models.
     """
     def __init__(self, in_channels, num_classes, drop_rate=0.3, **kwargs):
         super().__init__()
@@ -196,22 +196,22 @@ class GreenNet(nn.Module):
             nn.Conv2d(in_channels, 16, kernel_size=3, padding=1),
             nn.BatchNorm2d(16),
             nn.ReLU(),
-            nn.MaxPool2d(2),                 # 64 -> 32
+            nn.MaxPool2d(2),
 
             nn.Conv2d(16, 32, kernel_size=3, padding=1),
             nn.BatchNorm2d(32),
             nn.ReLU(),
-            nn.MaxPool2d(2),                 # 32 -> 16
+            nn.MaxPool2d(2),
 
             nn.Conv2d(32, 64, kernel_size=3, padding=1),
             nn.BatchNorm2d(64),
             nn.ReLU(),
-            nn.MaxPool2d(2),                 # 16 -> 8
+            nn.MaxPool2d(2),
 
             nn.Conv2d(64, 128, kernel_size=3, padding=1),
             nn.BatchNorm2d(128),
             nn.ReLU(),
-            nn.MaxPool2d(2),                 # 8 -> 4
+            nn.MaxPool2d(2),
         )
 
         self.gap = nn.AdaptiveAvgPool2d((1, 1))
@@ -219,6 +219,7 @@ class GreenNet(nn.Module):
         self.classifier = nn.Linear(128, num_classes)
 
     def forward(self, x):
+        x = (x - x.mean()) / (x.std() + 1e-5)   # normalize inputs internally
         x = self.features(x)
         x = self.gap(x)
         x = torch.flatten(x, 1)
