@@ -22,8 +22,8 @@ def set_seed(seed=42):     # <-- NEW: define the function here, after imports
     np.random.seed(seed)
     torch.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
-    torch.backends.cudnn.deterministic = True    # force repeatable GPU ops
-    torch.backends.cudnn.benchmark = False       # turn off algorithm auto-tuning
+    # torch.backends.cudnn.deterministic = True    # force repeatable GPU ops
+    # torch.backends.cudnn.benchmark = False       # turn off algorithm auto-tuning
 
 def main():
     set_seed() 
