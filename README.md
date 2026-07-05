@@ -21,7 +21,7 @@ The architecture features dynamic channel alignment, tailored data normalization
 ```text
 ├── Code/
 │   ├── data.py             # Volatile tensor data loading & train/val splitting
-│   ├── inspect_data.py     #
+│   ├── inspect_data.py     # Diagnostic data checking tool for shape and label alignment
 │   ├── models.py           # Deep learning model (AlexNet, VGG, ResNet, SlimResNet)
 │   ├── train.py            # Standard training and metric execution entry point
 │   ├── trainer.py          # Training, evaluation, and latency tracking
@@ -30,7 +30,7 @@ The architecture features dynamic channel alignment, tailored data normalization
 ├── config.json             # Execution configuration registry (automatically generated)
 ├── run_benchmarks.py       # Automated multi-dataset benchmark execution suite
 ├── AUDIT_LOG.md            # Technical inventory of code defects and engineering fixes
-├── EFFICIENCY_MATRIX       # 
+├── EFFICIENCY_MATRIX.md       # Profiled training runtimes, latencies, and peak GPU footprints
 ├── REPORT.md               # Final consolidated benchmark performance report
 └── README.md               # Project documentation (This file)
 ```
@@ -70,8 +70,8 @@ python run_benchmarks.py
 
 ## Model Persistence & Performance Highlights
 
-**Automated Weight Caching & Checkpointing:** The pipeline utilizes dynamic checkpointing `(best_model.pth)` to automatically recover the highest-performing epoch prior to test-set evaluation, preventing overfitting degradation. To minimize redundant compute during the Data Scarcity experiment, the pipeline automatically caches Phase 1 orgs pre-training weights `(orgs_pretrained_base.pth)`. Subsequent execution runs bypass Phase 1 re-training. Note that the *~26s* fine-tuning time reflects a cache hit; end-to-end transfer execution requires an initial *~799s* pre-training phase.
+**Automated Weight Caching & Checkpointing:** The pipeline utilizes dynamic checkpointing `(best_model.pth)` to automatically recover the highest-performing epoch prior to test-set evaluation, preventing overfitting degradation. To minimize redundant compute during the Data Scarcity experiment, the pipeline automatically caches Phase 1 orgs pre-training weights `(orgs_pretrained_base.pth)`. Subsequent execution runs bypass Phase 1 re-training. Note that the *~21s* fine-tuning time reflects a cache hit; end-to-end transfer execution requires an initial *~470s* pre-training phase.
 
 **Dynamic Channel Alignment:** Data loaders dynamically adapt 1-channel (grayscale) and 3-channel (RGB) images to meet backbone architectural requirements seamlessly without hardcoding dimension limits.
 
-**Verified Performance:** All pipelines meet or surpass their target evaluation thresholds, and the custom SlimResNet architecture successfully proves the Green Initiative by slashing memory usage by 89%. For detailed performance matrices and engineering deep-dives, see `REPORT.md` and `AUDIT_LOG.md`.
+**Verified Performance:** All pipelines meet or surpass their target evaluation thresholds, and the custom SlimResNet architecture successfully proves the Green Initiative by slashing memory usage by 87.50%. For detailed performance matrices and engineering deep-dives, see `REPORT.md` and `AUDIT_LOG.md`.
