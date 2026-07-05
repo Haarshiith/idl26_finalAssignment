@@ -3,6 +3,7 @@ import subprocess
 import time
 import sys
 import re
+import torch, numpy as np, random
 
 # Optimal architecture pairings, now with dynamic Channels, Classes and Pretraining.
 pairings = [
@@ -27,6 +28,14 @@ base_config = {
     "BATCH_SIZE": 16,
     "ACTIVATION": "ReLU"
 }
+
+seed = 42
+torch.manual_seed(seed)
+torch.cuda.manual_seed_all(seed)
+np.random.seed(seed)
+random.seed(seed)
+torch.backends.cudnn.deterministic = True
+torch.backends.cudnn.benchmark = False
 
 def main():
     print("="*60)

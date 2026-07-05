@@ -120,7 +120,6 @@ def main():
     for param in model.parameters():
         param.requires_grad = True 
         
-    # DO NOT replace model.fc! Phase 1 already perfectly mapped the 11 classes from `orgs`.
     # We will just gently fine-tune the existing weights using the micro-learning rate.
 
     train_loader_tgt, val_loader_tgt, test_loader_tgt = get_loaders(data=config["DATA"], data_path=config["DATA_PATH"], batch_size=config["BATCH_SIZE"])
@@ -128,9 +127,10 @@ def main():
     # Add gentle L2 regularization (weight_decay) to prevent overfitting the tiny dataset
     optimizer_tgt = optim.Adam(model.parameters(), lr=config["LEARNING_RATE"], weight_decay=1e-3)
     criterion_tgt = nn.CrossEntropyLoss()
+    scheduler_tgt = optim.lr_scheduler.ReduceLROnPlateau(optimizer_tgt, mode='max', factor=0.5, patience=3)
     
     trainer_tgt = Trainer(model, criterion_tgt, optimizer_tgt, device)
-    trainer_tgt.fit(train_loader_tgt, val_loader_tgt, epochs=config["EPOCHS"])
+    trainer_tgt.fit(train_loader_tgt, val_loader_tgt, epochs=config["EPOCHS"], scheduler=scheduler_tgt)
 
     # Load the optimal weights before final evaluation
     model.load_state_dict(torch.load("best_model.pth", weights_only=True))

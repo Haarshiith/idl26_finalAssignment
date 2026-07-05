@@ -10,14 +10,14 @@
 
 **Program:** Master's in Artificial Intelligence, THWS
 
-## 📋 Project Overview
+## Project Overview
 This repository contains the successfully audited, repaired, and optimized deep learning pipeline for BioHealth Diagnostics Global. Following a critical system wipe, the pipeline has been reconstructed from legacy draft caches to train and evaluate core model registries (`AlexNet`, `VGG16`, `ResNet18`) across standardized diagnostic image profiles (`cells`, `chest`, `lesions`, `orgs` and `organs`).
 
 The architecture features dynamic channel alignment, tailored data normalization, strict regularization to combat overfitting, and a modular configuration system.
 
 ---
 
-## 📁 Repository Structure
+## Repository Structure
 ```text
 ├── Code/
 │   ├── data.py             # Volatile tensor data loading & train/val splitting
