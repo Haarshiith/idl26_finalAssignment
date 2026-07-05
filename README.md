@@ -1,9 +1,13 @@
 # MAI - IDL 2026 - Final Project Assignment
 
 # BioHealth Histology Pipeline Reconstitution
-**Course:** Introduction to Deep Learning (SS26) - Final Assignment  
+
+**Course:** Introduction to Deep Learning (SS26) - Final Assignment 
+
 **Author:** Harshith Babu Prakash Babu
+
 **Matriculation Number:** 10001198
+
 **Program:** Master's in Artificial Intelligence, THWS
 
 ## 📋 Project Overview
@@ -17,14 +21,16 @@ The architecture features dynamic channel alignment, tailored data normalization
 ```text
 ├── Code/
 │   ├── data.py             # Volatile tensor data loading & train/val splitting
+│   ├── inspect_data.py     #
 │   ├── models.py           # Deep learning model (AlexNet, VGG, ResNet, SlimResNet)
-│   ├── trainer.py          # Training, evaluation, and latency tracking
 │   ├── train.py            # Standard training and metric execution entry point
+│   ├── trainer.py          # Training, evaluation, and latency tracking
 │   └── transfer.py         # Knowledge Transfer framework
 ├── data/                   # Target diagnostic datasets (.pt files) [Git ignored]
 ├── config.json             # Execution configuration registry (automatically generated)
 ├── run_benchmarks.py       # Automated multi-dataset benchmark execution suite
 ├── AUDIT_LOG.md            # Technical inventory of code defects and engineering fixes
+├── EFFICIENCY_MATRIX       # 
 ├── REPORT.md               # Final consolidated benchmark performance report
 └── README.md               # Project documentation (This file)
 ```
@@ -64,7 +70,7 @@ python run_benchmarks.py
 
 ## Model Persistence & Performance Highlights
 
-**Automated Weight Caching & Checkpointing:** The pipeline utilizes dynamic checkpointing `(best_model.pth)` to automatically recover the highest-performing epoch prior to test-set evaluation, preventing overfitting degradation. To minimize redundant compute during the Data Scarcity experiment, the pipeline automatically caches Phase 1 orgs pre-training weights `(orgs_pretrained_base.pth)`. Subsequent execution runs bypass re-training, cutting execution runtime significantly.
+**Automated Weight Caching & Checkpointing:** The pipeline utilizes dynamic checkpointing `(best_model.pth)` to automatically recover the highest-performing epoch prior to test-set evaluation, preventing overfitting degradation. To minimize redundant compute during the Data Scarcity experiment, the pipeline automatically caches Phase 1 orgs pre-training weights `(orgs_pretrained_base.pth)`. Subsequent execution runs bypass Phase 1 re-training. Note that the *~26s* fine-tuning time reflects a cache hit; end-to-end transfer execution requires an initial *~799s* pre-training phase.
 
 **Dynamic Channel Alignment:** Data loaders dynamically adapt 1-channel (grayscale) and 3-channel (RGB) images to meet backbone architectural requirements seamlessly without hardcoding dimension limits.
 

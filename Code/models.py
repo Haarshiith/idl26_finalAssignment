@@ -8,11 +8,11 @@ import torch.nn as nn
 import torchvision.models as tv_models
 import torch.nn.functional as F
 
-class VGGBlock(nn.Module):
-    """Modular VGG block with configurable number of conv layers and channels.
+"""class VGGBlock(nn.Module):
+    #Modular VGG block with configurable number of conv layers and channels.
 
-    C configuration from Simonyan & Zisserman's VGG paper.
-    """
+    #C configuration from Simonyan & Zisserman's VGG paper.
+    
     def __init__(self, in_channels, out_channels, num_convs, padding=1):
         super().__init__()
         layers = []
@@ -33,7 +33,7 @@ class VGGBlock(nn.Module):
         self.block = nn.Sequential(*layers)
 
     def forward(self, x):
-        return self.block(x)
+        return self.block(x)"""
 
 
 class ResBlock(nn.Module):

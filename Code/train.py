@@ -83,9 +83,10 @@ def main():
 
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=config["LEARNING_RATE"], weight_decay=1e-3)
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='max', factor=0.5, patience=3)
 
     trainer = Trainer(model, criterion, optimizer, device)
-    trainer.fit(train_loader, val_loader, epochs=config["EPOCHS"])
+    trainer.fit(train_loader, val_loader, epochs=config["EPOCHS"], scheduler=scheduler)
 
     model.load_state_dict(torch.load("best_model.pth", weights_only=True))
     
