@@ -115,6 +115,12 @@ def main():
     # PHASE 2: Target Domain Fine-Tuning (Scarce Data)
     # ---------------------------------------------------------
     print(f"\n--- PHASE 2: Fine-tuning on target scarce dataset '{config['DATA']}' ---")
+
+    # Reset the classifier head to prevent semantic label mismatch between orgs and organs
+    model.model.fc = nn.Sequential(
+        nn.Dropout(p=0.5),
+        nn.Linear(model.model.fc[1].in_features, config["NUM_CLASSES"])
+    ).to(device)
     
     # Unfreeze everything for gentle fine-tuning
     for param in model.parameters():

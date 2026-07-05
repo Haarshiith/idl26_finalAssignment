@@ -3,6 +3,9 @@ import subprocess
 import time
 import sys
 import re
+import torch
+import numpy as np
+import random
 
 # Optimal architecture pairings, now with dynamic Channels, Classes and Pretraining.
 pairings = [
@@ -18,7 +21,11 @@ pairings = [
     {"DATA": "orgs", "MODEL": "ResNet18", "EPOCHS": 20, "LEARNING_RATE": 0.0002, "CHANNELS": 1, "NUM_CLASSES": 11, "MODE": "train"},
     
     # 4. The Data-Scarcity Task (Controlled Experiment: Equal LR, Equal Epochs)
+    # Arm A: True Scratch
     {"DATA": "organs", "MODEL": "ResNet18", "EPOCHS": 20, "LEARNING_RATE": 0.0001, "CHANNELS": 1, "NUM_CLASSES": 11, "MODE": "train", "PRETRAINED": False}, 
+    # Arm B: ImageNet Init Only
+    {"DATA": "organs", "MODEL": "ResNet18", "EPOCHS": 20, "LEARNING_RATE": 0.0001, "CHANNELS": 1, "NUM_CLASSES": 11, "MODE": "train", "PRETRAINED": True},
+    # Arm C: Full Transfer
     {"DATA": "organs", "MODEL": "ResNet18", "EPOCHS": 20, "LEARNING_RATE": 0.0001, "CHANNELS": 1, "NUM_CLASSES": 11, "MODE": "transfer"} 
 ]
 
@@ -28,6 +35,13 @@ base_config = {
     "ACTIVATION": "ReLU"
 }
 
+seed = 42
+torch.manual_seed(seed)
+torch.cuda.manual_seed_all(seed)
+np.random.seed(seed)
+random.seed(seed)
+torch.backends.cudnn.deterministic = True
+
 def main():
     print("="*60)
     print("INITIATING AUTOMATED CONSOLIDATED BENCHMARK SUITE")
@@ -36,7 +50,7 @@ def main():
     start_time = time.time()
     
     # Prepare the Green Initiative Efficiency Matrix
-    efficiency_log = "## Efficiency Verification Matrix\n\n| Dataset | Model | Mode | Training Time (s) | Inference Latency (s/sample) | Peak GPU Memory (MB) |\n|---|---|---|---|---|---|\n"
+    efficiency_log = "## Efficiency Verification Matrix\n\n| Dataset | Model | Mode | Training Time (s) | Inference Latency (s/sample) | Peak GPU Memory (Training) (MB) |\n|---|---|---|---|---|---|\n"
 
     for pair in pairings:
         mode_label = "TRANSFER" if pair['MODE'] == "transfer" else ("SCRATCH" if not pair.get("PRETRAINED", True) else "PRETRAINED")

@@ -18,7 +18,7 @@ class Trainer:
     def train_one_epoch(self, dataloader):
         self.model.train()
         running_loss = 0.0
-        correct, sum = 0, 0
+        correct, total = 0, 0
         
         for images, labels in dataloader:
             images, labels = images.to(self.device), labels.to(self.device).squeeze().long()
@@ -52,10 +52,10 @@ class Trainer:
             
             running_loss += loss.item() * images.size(0)
             _, predicted = outputs.max(1)
-            sum += labels.size(0)
+            total += labels.size(0)
             correct += predicted.eq(labels).sum().item()
-            
-        return running_loss / sum, (correct / sum) * 100
+
+        return running_loss / total, (correct / total) * 100
 
     def evaluate(self, dataloader):
         self.model.eval()
@@ -97,7 +97,7 @@ class Trainer:
                 
         return running_loss / total, (correct / total) * 100, latency_per_sample
 
-    def fit(self, train_loader, val_loader, epochs):
+    def fit(self, train_loader, val_loader, epochs, scheduler=None):
         print("\n Starting Training Routine...")
         print("-" * 50)
 
@@ -111,6 +111,9 @@ class Trainer:
         for epoch in range(epochs):
             train_loss, train_acc = self.train_one_epoch(train_loader)
             val_loss, val_acc, val_latency = self.evaluate(val_loader)
+
+            if scheduler is not None:
+                scheduler.step(val_acc)
 
             if val_acc > best_val_acc:
                 best_val_acc = val_acc
