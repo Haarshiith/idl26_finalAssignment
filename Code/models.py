@@ -20,9 +20,14 @@ class VGGBlock(nn.Module):
         for i in range(num_convs):
             is_config_c_tail = (num_convs == 3 and i == 2)
             kernel_size = 1 if is_config_c_tail else 3
-            layers.append(nn.Conv2d(current_in_channels, out_channels, kernel_size=kernel_size, padding=padding))
+            
+            # FIXED: Prevent spatial corruption by removing padding on 1x1 convolutions
+            current_padding = 0 if is_config_c_tail else padding
+            
+            layers.append(nn.Conv2d(current_in_channels, out_channels, kernel_size=kernel_size, padding=current_padding))
             layers.append(nn.BatchNorm2d(out_channels))
             layers.append(nn.ReLU(inplace=True))
+            current_in_channels = out_channels
             
         layers.append(nn.MaxPool2d(kernel_size=2, stride=2))
         self.block = nn.Sequential(*layers)
@@ -60,13 +65,13 @@ class ResBlock(nn.Module):
 
 class AlexNet(nn.Module):
     """AlexNet (Krizhevsky et al., 2012) adapted for smaller inputs."""
-    def __init__(self, **kwargs):
+    def __init__(self, in_channels=1, num_classes=11, **kwargs):
         super().__init__()
 
         drop_rate = kwargs.get("drop_rate", 0.5)
         
         self.features = nn.Sequential(
-            nn.Conv2d(3, 48, kernel_size=7, stride=2, padding=3),
+            nn.Conv2d(in_channels, 48, kernel_size=7, stride=2, padding=3),
             nn.BatchNorm2d(48),
             nn.ReLU(inplace=True),
             nn.MaxPool2d(kernel_size=3, stride=2, padding=1),
@@ -84,6 +89,9 @@ class AlexNet(nn.Module):
             nn.ReLU(inplace=True),
             nn.MaxPool2d(kernel_size=3, stride=2, padding=1),
         )
+
+        # ADD THIS: Forces the output to be 4x4 regardless of input image size!
+        self.avgpool = nn.AdaptiveAvgPool2d((4, 4))
         
         self.classifier = nn.Sequential(
             nn.Dropout(p=drop_rate),
@@ -92,23 +100,25 @@ class AlexNet(nn.Module):
             nn.Dropout(p=drop_rate),
             nn.Linear(1024, 1024),
             nn.ReLU(inplace=True),
-            nn.Linear(1024, 11),
+            nn.Linear(1024, num_classes),
         )
 
     def forward(self, x):
         x = self.features(x)
+        x = self.avgpool(x)
         x = torch.flatten(x, 1)
         return self.classifier(x)
 
 
 class VGG16(nn.Module):
+    """VGG16 in D configuration of Simonyan & Zisserman, (2014) adapted for smaller inputs."""
     def __init__(self, in_channels=1, num_classes=11, **kwargs):
         super(VGG16, self).__init__()
         
         cfg = [64, 64, 'M', 128, 128, 'M', 256, 256, 256, 'M', 512, 512, 512, 'M', 512, 512, 512, 'M']
         
         layers = []
-        current_channels = in_channels # This tracks the channels dynamically as we go deeper
+        current_channels = in_channels
         
         activation_str = kwargs.get("activation_str", "ReLU")
         drop_rate = kwargs.get("drop_rate", 0.5)
@@ -118,7 +128,6 @@ class VGG16(nn.Module):
                 layers += [nn.MaxPool2d(kernel_size=2, stride=2)]
             else:
                 activation = getattr(nn, activation_str)
-
                 layers += [
                     nn.Conv2d(current_channels, v, kernel_size=3, padding=1),
                     nn.BatchNorm2d(v),
@@ -126,7 +135,7 @@ class VGG16(nn.Module):
                 ]
                 current_channels = v
                 
-        self.features = nn.Sequential(*layers)        
+        self.features = nn.Sequential(*layers)
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
         
         self.classifier = nn.Sequential(
@@ -146,13 +155,15 @@ class VGG16(nn.Module):
         x = self.classifier(x)
         return x
 
-
 class ResNet18(nn.Module):
     """ResNet18 utilizing Gentle Fine-Tuning and strict ImageNet input normalization."""
     def __init__(self, in_channels=1, num_classes=11, **kwargs):
         super(ResNet18, self).__init__()
         
-        self.model = tv_models.resnet18(weights=tv_models.ResNet18_Weights.IMAGENET1K_V1)
+        use_pretrained = kwargs.get("pretrained", True)
+        weights = tv_models.ResNet18_Weights.IMAGENET1K_V1 if use_pretrained else None
+        
+        self.model = tv_models.resnet18(weights=weights)
         
         for param in self.model.parameters():
             param.requires_grad = True
@@ -167,45 +178,31 @@ class ResNet18(nn.Module):
             x = F.interpolate(x, size=(224, 224), mode='bilinear', align_corners=False)
             
         return self.model(x)
-    
-
-class LeNet(nn.Module):
-    """Modern LeNet-5: Restored FC layers for parameter capacity, stabilized with BatchNorm & Dropout."""
+ 
+class SlimResNet(nn.Module):
+    """GREEN INITIATIVE: Downscaled, lightweight ResNet architecture for efficiency."""
     def __init__(self, in_channels=1, num_classes=11, **kwargs):
-        super(LeNet, self).__init__()
+        super(SlimResNet, self).__init__()
         
         activation_str = kwargs.get("activation_str", "ReLU")
-        self.activation = getattr(nn, activation_str)
+        self.activation = getattr(nn, activation_str)()
         
-        self.features = nn.Sequential(
-            nn.Conv2d(in_channels, 6, kernel_size=5, padding=2),
-            nn.BatchNorm2d(6),
-            self.activation(inplace=True),
-            nn.MaxPool2d(kernel_size=2, stride=2),
-            
-            nn.Conv2d(6, 16, kernel_size=5),
-            nn.BatchNorm2d(16),
-            self.activation(inplace=True),
-            nn.MaxPool2d(kernel_size=2, stride=2)
-        )
+        # Start with a tiny 16-channel convolution instead of ResNet18's 64
+        self.conv1 = nn.Conv2d(in_channels, 16, kernel_size=3, padding=1, bias=False)
+        self.bn1 = nn.BatchNorm2d(16)
         
-        self.avgpool = nn.AdaptiveAvgPool2d((5, 5))
+        # Use only two lightweight residual blocks
+        self.layer1 = ResBlock(16, 16, self.activation, stride=1)
+        self.layer2 = ResBlock(16, 32, self.activation, stride=2)
         
-        self.classifier = nn.Sequential(
-            nn.Flatten(),
-            nn.Linear(16 * 5 * 5, 120),
-            self.activation(inplace=True),
-            nn.Dropout(p=0.3), 
-            
-            nn.Linear(120, 84),
-            self.activation(inplace=True),
-            nn.Dropout(p=0.3),
-            
-            nn.Linear(84, num_classes)
-        )
+        self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
+        self.fc = nn.Linear(32, num_classes)
 
     def forward(self, x):
-        x = self.features(x)
+        x = self.activation(self.bn1(self.conv1(x)))
+        x = self.layer1(x)
+        x = self.layer2(x)
         x = self.avgpool(x)
-        x = self.classifier(x)
+        x = torch.flatten(x, 1)
+        x = self.fc(x)
         return x

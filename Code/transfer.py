@@ -4,13 +4,30 @@ import torch.nn as nn
 import torch.optim as optim
 from sklearn.metrics import accuracy_score, precision_recall_fscore_support, confusion_matrix
 from data import get_loaders
-import models
-from fit import Trainer
+from trainer import Trainer
 import torchvision.transforms as T
 import numpy as np
 import os
 import torchvision.models as tv_models
+import torch.nn.functional as F
 
+class TransferResNet18(nn.Module):
+    def __init__(self, num_classes=11, pretrained=True):
+        super().__init__()
+        weights = tv_models.ResNet18_Weights.IMAGENET1K_V1 if pretrained else None
+        self.model = tv_models.resnet18(weights=weights)
+        
+        # Fresh head with dropout, matching the Scratch model perfectly
+        self.model.fc = nn.Sequential(
+            nn.Dropout(p=0.5),
+            nn.Linear(self.model.fc.in_features, num_classes)
+        )
+        
+    def forward(self, x):
+        # Equalizes resolution to 224x224, matching the Scratch model
+        if x.size(2) < 224 or x.size(3) < 224:
+            x = F.interpolate(x, size=(224, 224), mode='bilinear', align_corners=False)
+        return self.model(x)
 
 def evaluate_test_set(model, test_loader, device):
     """Calculates final metrics for REPORT.md"""
@@ -29,7 +46,7 @@ def evaluate_test_set(model, test_loader, device):
             elif images.size(1) == 1 and expected_channels == 3:
                 images = images.repeat(1, 3, 1, 1)
                 
-            # Dynamic Normalization based on the aligned channels
+            # Dynamic Normalization
             if images.size(1) == 1:
                 normalize = T.Normalize(mean=[0.485], std=[0.229])
             else:
@@ -67,23 +84,25 @@ def main():
         config = json.load(f)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print(f"Executing Knowledge Transfer on: {device}")
+    print(f"Executing Knowledge Transfer Pipeline on: {device}")
 
-    # Load torchvision ResNet18 backbone with pretrained weights
-    model = tv_models.resnet18(weights='DEFAULT')
-    model.fc = nn.Linear(model.fc.in_features, config["NUM_CLASSES"])
-    model = model.to(device)
+    # ---------------------------------------------------------
+    # PHASE 1: Source Domain Pre-training (Massive 'orgs' dataset)
+    # ---------------------------------------------------------
+    print("\n--- PHASE 1: Pre-training features on massive 'orgs' baseline ---")
+    
+    model = TransferResNet18(num_classes=11, pretrained=True).to(device)
 
-    # Phase 1: Source Domain Pre-training (Chest Dataset)
-    cache_path = "chest_pretrained_base.pth"
+    cache_path = "orgs_pretrained_base.pth"
     
     if os.path.exists(cache_path):
+        print(f"[MLOps] Found cached Phase 1 weights at '{cache_path}'. Bypassing redundant training...")
         model.load_state_dict(torch.load(cache_path, weights_only=True))
     else:
-        print("\n--- PHASE 1: Pre-training features on 'chest' dataset ---")
-        train_loader_src, val_loader_src, _ = get_loaders(data="chest", data_path=config["DATA_PATH"], batch_size=config["BATCH_SIZE"])
+        # Load the massive 15k 'orgs' dataset for feature extraction
+        train_loader_src, val_loader_src, _ = get_loaders(data="orgs", data_path=config["DATA_PATH"], batch_size=config["BATCH_SIZE"])
         
-        optimizer_src = optim.Adam(model.parameters(), lr=config["LEARNING_RATE"])
+        optimizer_src = optim.Adam(model.parameters(), lr=0.001)
         criterion_src = nn.CrossEntropyLoss()
         
         trainer_src = Trainer(model, criterion_src, optimizer_src, device)
@@ -92,22 +111,26 @@ def main():
         torch.save(model.state_dict(), cache_path)
         print(f"\n[MLOps] Phase 1 weights cached successfully to '{cache_path}'.")
 
-    # Phase 2: Target Domain Fine-Tuning (Orgs Dataset)
-    for param in model.parameters():
-        param.requires_grad = True
-        
-    model.fc = nn.Sequential(
-        nn.Dropout(p=0.5),
-        nn.Linear(512, config["NUM_CLASSES"])
-    ).to(device)
-
-    train_loader_tgt, val_loader_tgt, test_loader_tgt = get_loaders(data="orgs", data_path=config["DATA_PATH"], batch_size=config["BATCH_SIZE"])
+    # ---------------------------------------------------------
+    # PHASE 2: Target Domain Fine-Tuning (Scarce Data)
+    # ---------------------------------------------------------
+    print(f"\n--- PHASE 2: Fine-tuning on target scarce dataset '{config['DATA']}' ---")
     
-    optimizer_tgt = optim.Adam(model.parameters(), lr=0.0002, weight_decay=1e-3)
+    # Unfreeze everything for gentle fine-tuning
+    for param in model.parameters():
+        param.requires_grad = True 
+        
+    # DO NOT replace model.fc! Phase 1 already perfectly mapped the 11 classes from `orgs`.
+    # We will just gently fine-tune the existing weights using the micro-learning rate.
+
+    train_loader_tgt, val_loader_tgt, test_loader_tgt = get_loaders(data=config["DATA"], data_path=config["DATA_PATH"], batch_size=config["BATCH_SIZE"])
+    
+    # Add gentle L2 regularization (weight_decay) to prevent overfitting the tiny dataset
+    optimizer_tgt = optim.Adam(model.parameters(), lr=config["LEARNING_RATE"], weight_decay=1e-3)
     criterion_tgt = nn.CrossEntropyLoss()
     
     trainer_tgt = Trainer(model, criterion_tgt, optimizer_tgt, device)
-    trainer_tgt.fit(train_loader_tgt, val_loader_tgt, epochs=20)
+    trainer_tgt.fit(train_loader_tgt, val_loader_tgt, epochs=config["EPOCHS"])
 
     # Load the optimal weights before final evaluation
     model.load_state_dict(torch.load("best_model.pth", weights_only=True))

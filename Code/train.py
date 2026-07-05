@@ -5,7 +5,7 @@ import torch.optim as optim
 from sklearn.metrics import accuracy_score, precision_recall_fscore_support, confusion_matrix
 from data import get_loaders
 import models
-from fit import Trainer
+from trainer import Trainer
 import torchvision.transforms as T
 import numpy as np
 
@@ -69,7 +69,18 @@ def main():
     train_loader, val_loader, test_loader = get_loaders(data=config["DATA"], data_path=config["DATA_PATH"], batch_size=config["BATCH_SIZE"])
 
     model_class = getattr(models, config["MODEL"])
-    model = model_class(in_channels=config["CHANNELS"], num_classes=config["NUM_CLASSES"], drop_rate=0.5, activation_str=config["ACTIVATION"]).to(device)
+
+    # Check config for pretrained status (defaults to True if not explicitly disabled)
+    is_pretrained = config.get("PRETRAINED", True)
+
+    model = model_class(
+        in_channels=config["CHANNELS"], 
+        num_classes=config["NUM_CLASSES"], 
+        drop_rate=0.5, 
+        activation_str=config["ACTIVATION"],
+        pretrained=is_pretrained
+    ).to(device)
+
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=config["LEARNING_RATE"], weight_decay=1e-3)
 

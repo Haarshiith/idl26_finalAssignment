@@ -3,6 +3,7 @@ MAI/IDL SS26 - Final assignment.
 
 MG 6/6/2026
 """
+# renamed to trainer.py from fit.py
 import torch
 import time
 import torchvision.transforms as T
