@@ -39,7 +39,7 @@ def main():
     efficiency_log = "## Efficiency Verification Matrix\n\n| Dataset | Model | Mode | Training Time (s) | Inference Latency (s/sample) | Peak GPU Memory (MB) |\n|---|---|---|---|---|---|\n"
 
     for pair in pairings:
-        mode_label = "TRANSFER" if pair['MODE'] == "transfer" else "SCRATCH"
+        mode_label = "TRANSFER" if pair['MODE'] == "transfer" else ("SCRATCH" if not pair.get("PRETRAINED", True) else "PRETRAINED")
         print(f"\n>>> Preparing Environment for: {pair['DATA'].upper()} ({mode_label}) paired with {pair['MODEL']} <<<")
         
         current_config = {**base_config, **pair}
@@ -55,11 +55,11 @@ def main():
             print(result.stdout)
             
             # Extract metrics using regex from the fit.py print statements
-            t_time = re.search(r"Total Training Time:\s*([\d.]+)", result.stdout)
+            matches = re.findall(r"Total Training Time:\s*([\d.]+)", result.stdout)
             i_lat = re.search(r"Inference Latency:\s*([\d.]+)", result.stdout)
             p_mem = re.search(r"Peak GPU Memory:\s*([\d.]+)", result.stdout)
             
-            val_time = t_time.group(1) if t_time else "N/A"
+            val_time = matches[-1] if matches else "N/A"
             val_lat = i_lat.group(1) if i_lat else "N/A"
             val_mem = p_mem.group(1) if p_mem else "0.00"
             
