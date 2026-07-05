@@ -3,7 +3,9 @@ import subprocess
 import time
 import sys
 import re
-import torch, numpy as np, random
+import torch
+import numpy as np
+import random
 
 # Optimal architecture pairings, now with dynamic Channels, Classes and Pretraining.
 pairings = [
@@ -19,7 +21,11 @@ pairings = [
     {"DATA": "orgs", "MODEL": "ResNet18", "EPOCHS": 20, "LEARNING_RATE": 0.0002, "CHANNELS": 1, "NUM_CLASSES": 11, "MODE": "train"},
     
     # 4. The Data-Scarcity Task (Controlled Experiment: Equal LR, Equal Epochs)
+    # Arm A: True Scratch
     {"DATA": "organs", "MODEL": "ResNet18", "EPOCHS": 20, "LEARNING_RATE": 0.0001, "CHANNELS": 1, "NUM_CLASSES": 11, "MODE": "train", "PRETRAINED": False}, 
+    # Arm B: ImageNet Init Only
+    {"DATA": "organs", "MODEL": "ResNet18", "EPOCHS": 20, "LEARNING_RATE": 0.0001, "CHANNELS": 1, "NUM_CLASSES": 11, "MODE": "train", "PRETRAINED": True},
+    # Arm C: Full Transfer
     {"DATA": "organs", "MODEL": "ResNet18", "EPOCHS": 20, "LEARNING_RATE": 0.0001, "CHANNELS": 1, "NUM_CLASSES": 11, "MODE": "transfer"} 
 ]
 
@@ -35,7 +41,6 @@ torch.cuda.manual_seed_all(seed)
 np.random.seed(seed)
 random.seed(seed)
 torch.backends.cudnn.deterministic = True
-torch.backends.cudnn.benchmark = False
 
 def main():
     print("="*60)
@@ -45,10 +50,10 @@ def main():
     start_time = time.time()
     
     # Prepare the Green Initiative Efficiency Matrix
-    efficiency_log = "## Efficiency Verification Matrix\n\n| Dataset | Model | Mode | Training Time (s) | Inference Latency (s/sample) | Peak GPU Memory (MB) |\n|---|---|---|---|---|---|\n"
+    efficiency_log = "## Efficiency Verification Matrix\n\n| Dataset | Model | Mode | Training Time (s) | Inference Latency (s/sample) | Peak GPU Memory (Training) (MB) |\n|---|---|---|---|---|---|\n"
 
     for pair in pairings:
-        mode_label = "TRANSFER" if pair['MODE'] == "transfer" else "SCRATCH"
+        mode_label = "TRANSFER" if pair['MODE'] == "transfer" else ("SCRATCH" if not pair.get("PRETRAINED", True) else "PRETRAINED")
         print(f"\n>>> Preparing Environment for: {pair['DATA'].upper()} ({mode_label}) paired with {pair['MODEL']} <<<")
         
         current_config = {**base_config, **pair}
@@ -64,11 +69,11 @@ def main():
             print(result.stdout)
             
             # Extract metrics using regex from the fit.py print statements
-            t_time = re.search(r"Total Training Time:\s*([\d.]+)", result.stdout)
+            matches = re.findall(r"Total Training Time:\s*([\d.]+)", result.stdout)
             i_lat = re.search(r"Inference Latency:\s*([\d.]+)", result.stdout)
             p_mem = re.search(r"Peak GPU Memory:\s*([\d.]+)", result.stdout)
             
-            val_time = t_time.group(1) if t_time else "N/A"
+            val_time = matches[-1] if matches else "N/A"
             val_lat = i_lat.group(1) if i_lat else "N/A"
             val_mem = p_mem.group(1) if p_mem else "0.00"
             

@@ -9,9 +9,9 @@ import torchvision.models as tv_models
 import torch.nn.functional as F
 
 """class VGGBlock(nn.Module):
-    #Modular VGG block with configurable number of conv layers and channels.
+    Modular VGG block with configurable number of conv layers and channels.
 
-    #C configuration from Simonyan & Zisserman's VGG paper.
+    C configuration from Simonyan & Zisserman's VGG paper.
     
     def __init__(self, in_channels, out_channels, num_convs, padding=1):
         super().__init__()
@@ -158,6 +158,7 @@ class VGG16(nn.Module):
 class ResNet18(nn.Module):
     """ResNet18 utilizing Gentle Fine-Tuning and strict ImageNet input normalization."""
     def __init__(self, in_channels=1, num_classes=11, **kwargs):
+        # in_channels is accepted for API consistency; alignment is handled dynamically in trainer.py
         super(ResNet18, self).__init__()
         
         use_pretrained = kwargs.get("pretrained", True)

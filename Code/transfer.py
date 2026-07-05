@@ -115,18 +115,23 @@ def main():
     # PHASE 2: Target Domain Fine-Tuning (Scarce Data)
     # ---------------------------------------------------------
     print(f"\n--- PHASE 2: Fine-tuning on target scarce dataset '{config['DATA']}' ---")
+
+    # Reset the classifier head to prevent semantic label mismatch between orgs and organs
+    model.model.fc = nn.Sequential(
+        nn.Dropout(p=0.5),
+        nn.Linear(model.model.fc[1].in_features, config["NUM_CLASSES"])
+    ).to(device)
     
     # Unfreeze everything for gentle fine-tuning
     for param in model.parameters():
         param.requires_grad = True 
         
-    # We will just gently fine-tune the existing weights using the micro-learning rate.
-
     train_loader_tgt, val_loader_tgt, test_loader_tgt = get_loaders(data=config["DATA"], data_path=config["DATA_PATH"], batch_size=config["BATCH_SIZE"])
     
     # Add gentle L2 regularization (weight_decay) to prevent overfitting the tiny dataset
     optimizer_tgt = optim.Adam(model.parameters(), lr=config["LEARNING_RATE"], weight_decay=1e-3)
     criterion_tgt = nn.CrossEntropyLoss()
+
     scheduler_tgt = optim.lr_scheduler.ReduceLROnPlateau(optimizer_tgt, mode='max', factor=0.5, patience=3)
     
     trainer_tgt = Trainer(model, criterion_tgt, optimizer_tgt, device)
