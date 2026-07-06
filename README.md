@@ -13,7 +13,7 @@
 ## Project Overview
 This repository contains the successfully audited, repaired, and optimized deep learning pipeline for BioHealth Diagnostics Global. Following a critical system wipe, the pipeline has been reconstructed from legacy draft caches to train and evaluate core model registries (`AlexNet`, `VGG16`, `ResNet18`) across standardized diagnostic image profiles (`cells`, `chest`, `lesions`, `orgs` and `organs`).
 
-The architecture features dynamic channel alignment, tailored data normalization, strict regularization to combat overfitting, and a modular configuration system.
+The architecture features dynamic input channel alignment, tailored data normalization distributions, strict regularization to combat overfitting, and a modular configuration system.
 
 ---
 
@@ -30,7 +30,7 @@ The architecture features dynamic channel alignment, tailored data normalization
 ├── config.json             # Execution configuration registry (automatically generated)
 ├── run_benchmarks.py       # Automated multi-dataset benchmark execution suite
 ├── AUDIT_LOG.md            # Technical inventory of code defects and engineering fixes
-├── EFFICIENCY_MATRIX.md       # Profiled training runtimes, latencies, and peak GPU footprints
+├── EFFICIENCY_MATRIX.md    # Profiled training runtimes, latencies, and peak GPU footprints
 ├── REPORT.md               # Final consolidated benchmark performance report
 └── README.md               # Project documentation (This file)
 ```
@@ -38,7 +38,7 @@ The architecture features dynamic channel alignment, tailored data normalization
 ## Getting Started
 
 ### 1. Prerequisites & Environment Setup
-Ensure you have Python 3.10+ installed. It is highly recommended to use a virtual environment:
+Ensure Python 3.10+ is installed locally. Build a clean virtual environment and load required packages:
 
 ```bash
 # Create and activate virtual environment
@@ -70,8 +70,10 @@ python run_benchmarks.py
 
 ## Model Persistence & Performance Highlights
 
-**Automated Weight Caching & Checkpointing:** The pipeline utilizes dynamic checkpointing `(best_model.pth)` to automatically recover the highest-performing epoch prior to test-set evaluation, preventing overfitting degradation. To minimize redundant compute during the Data Scarcity experiment, the pipeline automatically caches Phase 1 orgs pre-training weights `(orgs_pretrained_base.pth)`. Subsequent execution runs bypass Phase 1 re-training. Note that the *~21s* fine-tuning time reflects a cache hit; end-to-end transfer execution requires an initial *~470s* pre-training phase.
+**Automated Weight Caching & Checkpointing:** The pipeline uses dynamic checkpointing (`best_model.pth`) to recover the highest-performing epoch prior to test-set evaluation, preventing late-epoch overfitting from degrading the reported metrics. To minimize redundant compute during the data-scarcity experiment, Phase 1 `orgs` pre-training weights are cached to `orgs_pretrained_base.pth`; subsequent runs bypass Phase 1 re-training. The ~21s fine-tuning time reflects a cache hit — end-to-end transfer execution requires an initial ~469s Phase 1 pre-training pass.
 
-**Dynamic Channel Alignment:** Data loaders dynamically adapt 1-channel (grayscale) and 3-channel (RGB) images to meet backbone architectural requirements seamlessly without hardcoding dimension limits.
+**Dynamic Channel Alignment:** Data loaders dynamically adapt 1-channel (grayscale) and 3-channel (RGB) images to each backbone's expected input without hardcoded dimension limits.
 
-**Verified Performance:** All pipelines meet or surpass their target evaluation thresholds, and the custom SlimResNet architecture successfully proves the Green Initiative by slashing memory usage by 87.50%. For detailed performance matrices and engineering deep-dives, see `REPORT.md` and `AUDIT_LOG.md`.
+**Reproducibility:** All runs are governed by a fixed global seed (42) for consistency across executions.
+
+**Verified Performance:** All pipelines meet or surpass their target test-accuracy thresholds. The custom `SlimResNet` architecture demonstrates the Green Initiative by reducing peak training memory by **88.8%** (522.52 MB → 58.28 MB) and training runtime by **75.8%** on the `chest` benchmark, for a 2.24-point accuracy trade-off. See `REPORT.md` and `EFFICIENCY_MATRIX.md` for full matrices.

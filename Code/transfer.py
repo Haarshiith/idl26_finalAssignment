@@ -10,6 +10,7 @@ import numpy as np
 import os
 import torchvision.models as tv_models
 import torch.nn.functional as F
+import random
 
 class TransferResNet18(nn.Module):
     def __init__(self, num_classes=11, pretrained=True):
@@ -78,6 +79,14 @@ def evaluate_test_set(model, test_loader, device):
     print("-" * 50)
     print(f"Standard Metrics Total -> Correct (TP): {TP} | Misclassified: {FP}")
     print("="*50 + "\n")
+
+seed = 42
+torch.manual_seed(seed)
+torch.cuda.manual_seed_all(seed)
+np.random.seed(seed)
+random.seed(seed)
+torch.backends.cudnn.deterministic = True
+torch.backends.cudnn.benchmark = False
 
 def main():
     with open("config.json", "r") as f:

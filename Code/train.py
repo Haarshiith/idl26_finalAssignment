@@ -8,6 +8,8 @@ import models
 from trainer import Trainer
 import torchvision.transforms as T
 import numpy as np
+import random
+
 
 def evaluate_test_set(model, test_loader, device):
     """Calculates final metrics for REPORT.md"""
@@ -59,6 +61,14 @@ def evaluate_test_set(model, test_loader, device):
     print(f"Standard Metrics Total -> Correct (TP): {TP} | Misclassified: {FP}")
     print("="*50 + "\n")
 
+seed = 42
+torch.manual_seed(seed)
+torch.cuda.manual_seed_all(seed)
+np.random.seed(seed)
+random.seed(seed)
+torch.backends.cudnn.deterministic = True
+torch.backends.cudnn.benchmark = False
+
 def main():   
     with open("config.json", "r") as f:
         config = json.load(f)
@@ -82,7 +92,7 @@ def main():
     ).to(device)
 
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.Adam(model.parameters(), lr=config["LEARNING_RATE"],)
+    optimizer = optim.Adam(model.parameters(), lr=config["LEARNING_RATE"], weight_decay=1e-3)
 
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='max', factor=0.5, patience=3)
 
