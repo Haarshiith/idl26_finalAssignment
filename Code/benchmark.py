@@ -15,7 +15,7 @@ import torch.optim as optim
 from sklearn.metrics import precision_score, recall_score, f1_score
 from data import get_loaders
 import models
-from fit import Trainer
+from trainer import Trainer
 
 def set_seed(seed=42):     # <-- NEW: define the function here, after imports
     random.seed(seed)

@@ -10,7 +10,7 @@ import torch.nn as nn
 import torch.optim as optim
 from data import get_loaders
 import models
-from fit import Trainer
+from trainer import Trainer
 
 def main():   
     with open("config.json", "r") as f:

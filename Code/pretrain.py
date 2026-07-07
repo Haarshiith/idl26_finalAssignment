@@ -12,7 +12,7 @@ import torch.nn as nn
 import torch.optim as optim
 from data import get_loaders
 import models
-from fit import Trainer
+from trainer import Trainer
 
 
 def set_seed(seed=42):
