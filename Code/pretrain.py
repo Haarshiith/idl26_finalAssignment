@@ -6,7 +6,6 @@ so they can be transferred to the small 'organs' dataset.
 import json
 import random
 import numpy as np
-
 import torch
 import torch.nn as nn
 import torch.optim as optim
