@@ -4,9 +4,9 @@
 
 **Course:** Introduction to Deep Learning (SS26) - Final Assignment 
 
-**Author:** Harshith Babu Prakash Babu
+**Authors:** Harshith Babu Prakash Babu, Muhammad Talha Khan
 
-**Matriculation Number:** 10001198
+**Matriculation Number:** 10001198, 10013383
 
 **Program:** Master's in Artificial Intelligence, THWS
 
@@ -15,24 +15,25 @@ This repository contains the successfully audited, repaired, and optimized deep 
 
 The architecture features dynamic input channel alignment, tailored data normalization distributions, strict regularization to combat overfitting, and a modular configuration system.
 
----
-
 ## Repository Structure
 ```text
 ├── Code/
-│   ├── data.py             # Volatile tensor data loading & train/val splitting
-│   ├── inspect_data.py     # Diagnostic data checking tool for shape and label alignment
-│   ├── models.py           # Deep learning model (AlexNet, VGG, ResNet, SlimResNet)
-│   ├── train.py            # Standard training and metric execution entry point
-│   ├── trainer.py          # Training, evaluation, and latency tracking
-│   └── transfer.py         # Knowledge Transfer framework
-├── data/                   # Target diagnostic datasets (.pt files) [Git ignored]
-├── config.json             # Execution configuration registry (automatically generated)
-├── run_benchmarks.py       # Automated multi-dataset benchmark execution suite
-├── AUDIT_LOG.md            # Technical inventory of code defects and engineering fixes
-├── EFFICIENCY_MATRIX.md    # Profiled training runtimes, latencies, and peak GPU footprints
-├── REPORT.md               # Final consolidated benchmark performance report
-└── README.md               # Project documentation (This file)
+│   ├── data/                 # Target diagnostic datasets (.pt files)
+│   ├── benchmark.py          # Automated multi-dataset benchmark execution suite
+│   ├── config.json           # Execution configuration registry
+│   ├── data.py               # Volatile tensor data loading & train/val splitting
+│   ├── inspect_data.py       # Diagnostic data checking tool
+│   ├── models.py             # Deep learning models (AlexNet, VGG, ResNet, GreenNet)
+│   ├── pretrain.py           # Pre-training execution script
+│   ├── train.py              # Standard training and metric execution entry point
+│   ├── trainer.py            # Training, evaluation, and latency tracking engine
+│   └── transfer.py           # Knowledge Transfer framework
+├── .gitignore                # Git exclusion rules
+├── AUDIT_LOG.md              # Technical inventory of code defects and engineering fixes
+├── README.md                 # Project documentation (This file)
+├── REPORT.md                 # Final consolidated benchmark performance report
+├── requirements.txt          # Python environment dependencies
+└── results.csv               # Exported benchmark metrics output
 ```
 
 ## Getting Started
@@ -47,14 +48,13 @@ source venv/bin/activate #for Mac
 venv\Scripts\activate #for Windows
 ```
 
-## Install required packages
-
+### Install dependencies
 ```
-pip install torch torchvision scikit-learn numpy
+pip install -r requirements.txt
 ```
 
 ### 2. Dataset Placement
-Download the pristine emergency back-up datasets and place them within a root directory named data/:
+Download the pristine emergency back-up datasets and place them within the nested data directory `data/`:
 
 ```bash
 mkdir data
@@ -65,15 +65,17 @@ mkdir data
 To replicate all final production runs across all datasets using their optimal architecture pairings under isolated GPU memory conditions, execute the automated orchestration runner:
 
 ```bash
-python run_benchmarks.py
+python benchmarks.py
 ```
 
 ## Model Persistence & Performance Highlights
 
-**Automated Weight Caching & Checkpointing:** The pipeline uses dynamic checkpointing (`best_model.pth`) to recover the highest-performing epoch prior to test-set evaluation, preventing late-epoch overfitting from degrading the reported metrics. To minimize redundant compute during the data-scarcity experiment, Phase 1 `orgs` pre-training weights are cached to `orgs_pretrained_base.pth`; subsequent runs bypass Phase 1 re-training. The ~21s fine-tuning time reflects a cache hit — end-to-end transfer execution requires an initial ~469s Phase 1 pre-training pass.
+**Automated Weight Caching & Checkpointing:** The pipeline uses dynamic checkpointing (`best_model.pt`) to recover the highest-performing epoch prior to test-set evaluation, preventing late-epoch overfitting from degrading the reported metrics. To minimize redundant compute during the data-scarcity experiment, source-domain pre-training weights are cached to `pretrained_orgs.pt`. Subsequent runs automatically load this cache to bypass redundant Phase 1 computation.
 
 **Dynamic Channel Alignment:** Data loaders dynamically adapt 1-channel (grayscale) and 3-channel (RGB) images to each backbone's expected input without hardcoded dimension limits.
 
 **Reproducibility:** All runs are governed by a fixed global seed (42) for consistency across executions.
 
-**Verified Performance:** All pipelines meet or surpass their target test-accuracy thresholds. The custom `SlimResNet` architecture demonstrates the Green Initiative by reducing peak training memory by **88.8%** (522.52 MB → 58.28 MB) and training runtime by **75.8%** on the `chest` benchmark, for a 2.24-point accuracy trade-off. See `REPORT.md` and `EFFICIENCY_MATRIX.md` for full matrices.
+All optimized model pipelines successfully meet their clinical accuracy thresholds (with `chest` serving as a known data-limited borderline). The custom `GreenNet` architecture fully satisfies the Green Initiative on the `chest` benchmark, it reduces peak GPU training memory by `~84% (605.5 MB → 96.7 MB)` and slashes training runtime by `~95.8% (224.0s → 9.3s)` while maintaining a nearly identical accuracy to the massive ResNet18 baseline (only a 0.01% difference).
+
+(For the complete empirical analysis, efficiency matrix, and scarcity post-mortem, please refer to `REPORT.md`).

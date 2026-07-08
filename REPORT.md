@@ -1,87 +1,139 @@
 # Consolidated Benchmark Report: Operation Cyber-Histology
 
-**Module:** Introduction to Deep Learning
+**Course:** Introduction to Deep Learning (SS26) - Final Assignment 
 
-**Phase:** Final Architecture Pairings & Performance Evaluation
+**Authors:** Harshith Babu Prakash Babu, Muhammad Talha Khan
 
-**Name:** Harshith Babu Prakash Babu
-
-**Matriculation Number:** 10001198
+**Matriculation Number:** 10001198, 10013383
 
 **Program:** Master's in Artificial Intelligence, THWS
 
+**Phase:** Final Architecture Pairings & Performance Evaluation
+
 ## Executive Summary
 
-Following the forensic audit and reconstruction of the baseline architecture, an automated benchmark orchestrator was developed to map dataset complexity to model capacity. The final pipeline dynamically handles channel alignment, normalization, and dataset switching through a single external configuration file, avoiding the anti-pattern of rigid, single-model deployments. All runs are governed by a fixed global seed (42) for consistency across executions.
+After the pipeline was audited and repaired, every model was run through a single automated `benchmark.py` across all four datasets. Each model trained for `15 epochs` at `batch size 64`, using Adam at a learning rate of `0.001` with dropout `0.3`, and a fixed seed of `42` for consistency across runs. Every result below is measured on the held-out **test** split, and we report the **best-validation-epoch checkpoint** rather than the final epoch, since a few datasets dip on the last epoch and evaluating that would understate the model. 
 
-## Final Performance Matrix
+The report covers three parts: 
+* The Recovered-Model Benchmark, 
+* The Green Initiative Efficiency Work, 
+* The Data-Scarcity study on the `organs` dataset.
 
-The table below details the performance metrics captured across all dataset and model configurations under strictly seeded execution conditions.
+## Part 1: Consolidated Benchmark Report
 
-| Dataset | Selected Architecture | Mode | Accuracy | Precision | Recall | Macro F1-score | Status |
-| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Cells** | `AlexNet` | PRETRAINED | 94.68% | 0.9475 | 0.9353 | 0.9400 | **PASS** (>90%) |
-| **Chest** | `ResNet18` | PRETRAINED | 89.90% | 0.9284 | 0.8662 | 0.8851 | **PASS** (>87%) |
-| **Lesions** | `VGG16` | PRETRAINED | 79.50% | 0.7346 | 0.5426 | 0.5771 | **PASS** (>67%) |
-| **Orgs** | `ResNet18` | PRETRAINED | 93.27% | 0.9276 | 0.9223 | 0.9227 | **PASS** (>83%) |
+The three recovered models (AlexNet, VGG16, ResNet18) were evaluated on every dataset, after the pipeline was fixed. The table reports accuracy, precision, recall, and macro F1 on the test set.
 
-## Architectural Selection Rationale
+| Selected Architecture | Dataset | Accuracy | Precision | Recall | Macro F1-Score | Status |
+|-------|---------|----------|-----------|--------|----------|----------|
+| `AlexNet` | **cells** | 95.67% | 0.9592 | 0.9553 | 0.9570 | **PASS** (>90%) |
+| `VGG16` | **cells** | 96.54% | 0.9671 | 0.9579 | 0.9622 | **PASS** (>90%) |
+| `ResNet18` | **cells** | 96.95% | 0.9718 | 0.9677 | 0.9695 | **PASS** (>90%) |
+| `AlexNet` | **chest** | 83.09% | 0.8750 | 0.7615 | 0.7807 | **FAIL** (>87%) |
+| `VGG16` | **chest** | 82.39% | 0.8842 | 0.7594 | 0.7783 | **FAIL** (>87%) |
+| `ResNet18` | **chest** | 86.62% | 0.8996 | 0.8197 | 0.8396 | **BORDER** (>87%) |
+| `AlexNet` | **lesions** | 75.96% | 0.5806 | 0.4971 | 0.5150 | **PASS** (>67%) |
+| `VGG16` | **lesions** | 71.77% | 0.3799 | 0.2798 | 0.2888 | **PASS** (>67%) |
+| `ResNet18` | **lesions** | 73.47% | 0.5323 | 0.4135 | 0.4224 | **PASS** (>67%) |
+| `AlexNet` | **orgs** | 89.47% | 0.8823 | 0.8809 | 0.8795 | **PASS** (>83%) |
+| `VGG16` | **orgs** | 89.29% | 0.8762 | 0.8771 | 0.8751 | **PASS** (>83%) |
+| `ResNet18` | **orgs** | 92.04% | 0.9164 | 0.9112 | 0.9116 | **PASS** (>83%) |
 
-Based on the observed benchmark evaluations, the architectural allocations are justified as follows:
+### Architectural Selection Rationale:
 
-* **Cells (AlexNet):** Microscopic cellular structures lack deep spatial complexity. AlexNet provides sufficient capacity to map these simple features while aggressively combating memorization through its fully-connected dropout layers, at a fraction of the memory cost of deeper backbones.
-* **Chest & Orgs (ResNet18):** Macroscopic radiological scans feature complex, overlapping anatomical structures. ResNet18's residual skip connections provide a direct gradient path that supports deep spatial feature extraction, and its ImageNet initialization accelerates convergence on these profiles.
-* **Lesions (VGG16):** Skin lesions rely on fine textural and 3-channel colour variation. VGG16's stacked $3 \times 3$ convolutions capture this detail and clear the threshold. The gap between accuracy (79.50%) and macro-F1 (0.5771) reflects the dataset's known class imbalance. The model performs well on majority classes and weakly on rare ones, so accuracy overstates per-class reliability.
+The recommended pairings follow from the observed results:
 
-## Green Initiative: Efficiency Verification & Architectural Complexity
+| Dataset | Benchmark | Recommended model | Best baseline | Result |
+| :--- | :--- | :--- | :--- | :--- |
+| `cells` | 90% | **ResNet18** | 96.95% | PASS |
+| `chest` | 87% | **ResNet18** | 86.62% | BORDER |
+| `lesions` | 67% | **AlexNet** | 75.96% | PASS |
+| `orgs` | 83% | **ResNet18** | 92.04% | PASS |
+
+**Cells, Lesions, and Orgs** clear their floors comfortably. **Chest is in borderline**, in this run the best model is `ResNet18` reached `86.62%`, which sits just under the 87% target and the reason is it turns out not to be a capacity problem. 
+
+On **Chest**, every Model reaches roughly `97–98%` validation accuracy but drops into the low-to-mid `~80%` on test. That large validation-to-test gap points to a distribution shift between the training/validation data.
+
+Lesions is worth a second look because accuracy and macro F1 disagree sharply. For instance, **AlexNet** hits `75.96%` accuracy but only `0.5150` macro F1. That gap is the signature of class imbalance. 
+
+**ResNet18** has more parameters than **AlexNet** yet lands in the same range. Across repeated runs the **Chest** test score drifts `1-2%` either way, so it clears 87% on some runs and falls just short on others. The honest read is that chest is a genuinely borderline dataset for all of these architectures, and the ceiling comes from the data rather than the model.
+
+## Part 2: Green Initiative Analysis: Efficiency Verification & Architectural Complexity
+
+The goal here was to design a leaner architecture that keeps accuracy close to the baselines while cutting runtime and memory. We built **GreenNet**.
+
+### The Architecture:
+
+`GreenNet` is four small convolutional blocks followed by global average pooling and a single linear layer:
+
+- Four blocks of `Conv2d(3x3, padding 1) → BatchNorm2d → ReLU → MaxPool2d(2)`, with channels growing 16 → 32 → 64 → 128.
+- `AdaptiveAvgPool2d((1,1))` - global average pooling, the same idea ResNet18 uses to collapse the feature map.
+- Dropout, then `Linear(128, num_classes)`.
+- A single normalization line at the start of `forward` that z-scores the input batch, so `GreenNet` normalizes its own inputs without touching the shared data pipeline the baselines use.
+
+Every layer type is one that already appears in the provided models, so nothing exotic was introduced. The design choice that matters most is using global average pooling instead of large fully-connected layers. `AlexNet` and VGG keep most of their weights in those final dense layers, and dropping them is what takes `GreenNet` down to roughly 100K parameters, against millions for the baselines.
 
 ### Efficiency Verification Matrix:
 
-| Dataset | Model | Initialization | Accuracy | Macro F1 | Training Time (s) | Inference Latency (s/sample) | Peak GPU Memory (Training) (MB) |
-|---|---|---|---|---|---|---|---|
-| chest | ResNet18 | ImageNet | 89.90% | 0.8851 | 355.97 | 0.001060 | 522.52 |
-| chest | SlimResNet | Random | 87.66% | 0.8574 | 54.80 | 0.000156 | 56.81 |
+| Model | Dataset | Accuracy | Training time (s) | Training memory (MB) | Inference Latency (ms) | Peak GPU Memory (Training) (MB) |
+|-------|---------|----------|----------------|----------------|--------------|----------------|
+| `GreenNet` | **cells** | 96.67% | 26.25 | 139.4 | 0.0702 | 98.7 |
+| `ResNet18` | **cells** | 96.95% | 583.16 | 1539.6 | 0.8662 | 607.5 |
+| `GreenNet` | **chest** | 86.61% | 9.32 | 137.4 | 0.0582 | 96.7 |
+| `ResNet18` | **chest** | 86.62% | 224.07 | 1535.4 | 0.8837 | 605.5 |
+| `GreenNet` | **lesions** | 75.61% | 15.77 | 139.4 | 0.0721 | 98.7 |
+| `ResNet18` | **lesions** | 73.47% | 342.03 | 1538.6 | 0.8674 | 607.5 |
+| `GreenNet` | **orgs** | 91.30% | 26.52 | 137.4 | 0.0543 | 96.7 |
+| `ResNet18` | **orgs** | 92.04% | 655.40 | 1535.5 | 0.8645 | 605.5 |
 
 ### Architectural Trade-off Evaluation:
 
-Forcing the deepest available architecture onto every dataset inflates latency, memory, and energy footprint. `SlimResNet` implements aggressive architectural downscaling directly in the model definition. A 16-channel stem (versus ResNet18's 64), two lightweight residual blocks, and global average pooling, operating on native 64×64 inputs.
+Comparing `GreenNet` against `ResNet18`, which was the strongest baseline overall:
 
-Benchmarked head-to-head against the 11-million-parameter ImageNet-initialized `ResNet18` on the `chest` dataset:
+- **Accuracy:** `GreenNet` stays within about `0.75` points on **cells**, **chest**, and **orgs**, and actually beats `ResNet18` on **lesions** (`75.61 vs 73.47`).
+- **Training time:** It trains roughly `20–25 times` faster (for example `26.5s vs 655.4s` on **orgs**).
+- **Inference latency:** roughly `0.05–0.07 ms` per sample against about `0.87 ms`, a bit over `10 times` faster.
+- **Training memory:** about `137 MB` against roughly `1.536 MB`, so around `11 times` lighter.
+- **Inference memory:** about `97 MB` against roughly `606 MB`, around `6 times` lighter.
 
-* **Peak GPU memory:** 522.52 MB → 58.28 MB, an **88.8% reduction**.
-* **Training runtime:** 273.52s → 66.14s, a **75.8% reduction**.
-* **Accuracy trade-off:** 89.90% → 87.66%, a **2.24-point drop**, still clearing the 87% clinical threshold.
+So the trade is heavily in `GreenNet`'s favour. Nearly identical accuracy at a small fraction of the compute and memory. It is also competitive with the other two baselines on every dataset, and on **Chest** it matches `ResNet18` and beats both **AlexNet** and **VGG16**.
 
-The comparison is not fully isolated. The baseline carries ImageNet initialization while `SlimResNet` trains from scratch, so part of the efficiency delta reflects both architecture size and initialization. Even accounting for this, the memory and runtime reductions are an order of magnitude larger than the accuracy cost, demonstrating that targeted downscaling preserves clinical viability at a fraction of the computational and environmental footprint.
+### Averaged across all four datasets
 
-## Data-Scarcity Post-Mortem: The `Organs` Dataset
+`ResNet18` is the sharpest single contrast. Because it is the most expensive baseline, but it is fair to check `GreenNet` against all three original models at once. Averaging each metric over the four datasets:
+
+| Model | Avg accuracy | Avg training time (s) | Avg training mem (MB) | Avg latency (ms) | Avg infererence memory (MB) |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| `AlexNet` | 86.04% | 31.0 | ~201 | 0.076 | ~124 |
+| `VGG16` | 84.99% | 184.6 | ~874 | 0.400 | ~484 |
+| `ResNet18` | 87.27% | 451.2 | ~1537 | 0.865 | ~606 |
+| `GreenNet` | 87.54% | 19.5 | ~138 | 0.062 | ~98 |
+
+`GreenNet` has the highest average accuracy of the four models (`87.54`, just ahead of `ResNet18`'s `87.27`), and it is also the cheapest model on every axis. It trains faster than even `AlexNet`, the lightest baseline, and uses roughly a tenth of `ResNet18`'s memory. So `GreenNet` is not merely comparable to the original configurations. On average it is both the most accurate and the least expensive. `GreenNet` is more accurate while using a sixth of the training memory and running about `six times` faster at inference.
+
+We also tested a wider variant (`channels 32 → 64 → 128 → 256`, about four times the parameters). It did not meaningfully improve accuracy, for **Chest** it stayed in the same range and **Cells** was slightly worse, which fits the earlier finding that chest is limited by its data, not its model size. Since the wider version cost more for no real gain, we kept the small `GreenNet`, which also fits the "keep it simple" brief better.
+
+
+## Part 3: Data-Scarcity Post-Mortem
+
+**From scratch** trains `GreenNet` on **organs** directly, starting from random weights. **Transfer** first trains `GreenNet` on the larger `orgs` dataset, saves those weights, then loads them and fine-tunes on `organs`. Since `orgs` and `organs` are the same 11-class grayscale task at different sizes, the features learned on the larger set carry over almost directly.
 
 ### Controlled Scarce-Data Benchmark Matrix
 
-| Experimental Arm | Initialization State | Pre-training Phase | Accuracy | Macro F1 |
-|---|---|---|---|---|
-| **Arm A (True Scratch)** | Random Initialization | None | 67.50% | 0.6200 |
-| **Arm B (Generalized Base)** | ImageNet Weights Only | None | 73.50% | 0.6848 |
-| **Arm C (Domain Transfer)** | ImageNet Weights | ~469 on `orgs` | 69.00% | 0.5842 |
-
-The 500-sample `organs` dataset required navigating extreme data scarcity against a mandated minimum test accuracy of 40%. Three arms were compared under matched conditions: identical input resolution (`224×224`), classifier head (`Dropout + Linear`), learning rate (`0.0001`), weight decay (`1e-3`), epoch budget (`20`), and global seed. The only variable across arms is the initialization/pre-training state.
+| Approach | Test accuracy | Macro F1 | Best val accuracy |
+|----------|---------------|----------|-------------------|
+| From scratch | 54.45% | 43.48 | ~66 |
+| Transfer | 67.70% | 60.02 | 92.00 |
 
 ### Quantitative Impact Analysis:
 
-All three arms cleared the 40% mandate. The ranking is **B (73.50%) > C (69.00%) > A (67.50%)** on accuracy, with the same ordering on macro-F1 (0.6848 > 0.5842 for C, 0.6200 for A).
+Both approaches clear the `40%` floor, but transfer has more. Clearly **+13.25 points of accuracy and +16.54 points of macro F1.** The Macro F1 jump is the more telling one, because it means transfer helped across all 11 classes, not just the easy ones.
 
-Two findings stand out:
+The training curves back this up. From scratch, validation accuracy lurched wildly from epoch to epoch, from the 10s up to the 80s and back down, exactly what you expect when a 50-image for validation slice is being pushed around by a handful of examples. With transfer, the model opened at 72% validation accuracy in the very first epoch, higher than the scratch model reached reliably at some point. Starting from knowledge learned on the larger dataset is doing real work here.
 
-1. **Generalized ImageNet initialization (Arm B) was the strongest and most balanced.** It beat true scratch (Arm A) by 6.0 accuracy points and achieved the highest macro-F1 (0.6848), indicating better performance across minority classes, not just majority-class accuracy.
+Transfer did not make the scarcity problem disappear. Even with pretrained weights there is still a gap between training accuracy (high 80s) and test accuracy (**67.70%**), and validation gets shaky again in the last few epochs. That residual overfitting is expected with only ~500 images and transfer reduces the problem but cannot remove it.
 
-2. **Intermediate `orgs` pre-training (Arm C) did not help and produced the weakest class balance.** Despite mid-pack accuracy, Arm C recorded the lowest macro-F1 (0.5842), meaning its predictions were more skewed toward dominant classes.
+### Recommendations as more data arrives:
 
-**Important warning on Arm C:** Arm C's classification head was re-initialized before Phase 2 (to avoid any source/target label-index mismatch), so it began fine-tuning from a random head on top of the `orgs`-pretrained backbone. Its validation accuracy was still climbing at the end of the 20-epoch budget (reaching 83.33% only at the final epoch, versus Arm B stabilizing near 89% by epoch 4). Arm C's underperformance may therefore partly reflect insufficient optimization time for the reset head rather than pure negative transfer. This distinction matters supports the data "orgs pre-training offered no advantage within a fixed budget," but does not conclusively prove a negative-transfer mechanism.
-
-**Expert Summary:**
-
-For extreme data scarcity at this scale (n=200 test), generalized ImageNet initialization (Arm B) delivered the best and most balanced performance while requiring no additional pre-training. Intermediate domain-specific pre-training on `orgs` (Arm C) added a substantial one-time computational cost (~469s Phase 1) without improving results, and degraded per-class balance.
-
-**Recommendation:** 
-
-Initialize directly from generalized ImageNet weights (Arm B) for scarce-data organ classification. Intermediate domain-specific pre-training is not justified at the current data scale and, if pursued in future, must be given a longer fine-tuning budget before its effect can be fairly evaluated. As more `organs` data is collected, these arms should be re-benchmarked with multiple seeds to establish confidence intervals, since single-run deltas at n=200 remain sensitive to sampling.
+* **Now:** use transfer learning from `orgs`. It is a clear, cheap win over training from scratch and needs no extra data.
+- **Short term:** the biggest remaining limit is the tiny validation set, which makes model selection noisy. Simple data augmentation (flips, small rotations) and a larger or cross-validated validation split would make the fine-tuning more stable and the reported numbers more trustworthy.
+- **Longer term:** once `organs` grows to a few thousand images, it is worth re-checking whether fine-tuning the whole network still beats training from scratch, and whether freezing only the early layers gives a better balance. With enough data the advantage of transfer shrinks, but until then it is the right default.
