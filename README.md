@@ -15,6 +15,12 @@ This repository contains the successfully audited, repaired, and optimized deep 
 
 The architecture features dynamic input channel alignment, tailored data normalization distributions, strict regularization to combat overfitting, and a modular configuration system.
 
+## Branch Structure
+This repository is split across `two branches`, as required by the assignment brief:
+
+* **`main`** -> Part 1 (pipeline reconstruction, audit log, benchmark report) and Part 2 (Green Initiative: the `GreenNet` architecture and efficiency verification).
+* **`development`** -> Part 3 (data-scarcity knowledge transfer on the `organs` dataset), committed separately as specified. Includes `pretrain.py` and `transfer.py`, plus the Data-Scarcity Post-Mortem section in `REPORT.md`.
+
 ## Repository Structure
 ```text
 ├── Code/
