@@ -57,7 +57,7 @@ pip install -r requirements.txt
 Download the pristine emergency back-up datasets and place them within the nested data directory `data/`:
 
 ```bash
-mkdir data
+mkdir Code/data
 # Place cells.pt, chest.pt, lesions.pt, orgs.pt, and organs.pt into the data/ directory
 ```
 
