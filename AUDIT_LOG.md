@@ -1,36 +1,60 @@
-# Technical Audit Log: Pipeline Reconstruction
+# AUDIT LOG: Operation Cyber-Histology
 
-This document lists out all critical failures discovered within the BioHealth Diagnostics Global machine learning pipeline. This documents the root causes and applied mathematical/structural corrections to restore system integrity.
+**Course:** Introduction to Deep Learning (SS26) - Final Assignment 
 
-## Dataset Profile (Pre-Audit Observation)
+**Authors:** Harshith Babu Prakash Babu, Muhammad Talha Khan
 
-Recovered datasets, profiled via `inspect_data.py` before any code modification:
+**Matriculation Number:** 10001198, 10013383
 
-| Dataset | Channels | Image size | Classes | Train samples | Test samples |
-|---|---|---|---|---|---|
-| cells   | 3 | 64×64 | 8  | 13,671 | 3,421 |
-| chest   | 1 | 64×64 | 2  | 5,232  | 624   |
-| lesions | 3 | 64×64 | 7  | 8,010  | 2,005 |
-| orgs    | 1 | 64×64 | 11 | 15,367 | 8,216 |
-| organs  | 1 | 64×64 | 11 | 500    | 200   |
+**Program:** Master's in Artificial Intelligence, THWS
 
-All image tensors are `float32` in range `[0, 1]`. All label tensors are `int64` with shape `(N, 1)`.
 
-## Bug Inventory
+This log documents every bug, corruption, and anti-pattern found in the recovered code. For each entry we record the file, how the problem showed up, the underlying cause, the fix applied, and the commit that contains that fix. The issues fall into the three categories the forensic team described: crashing/runtime errors, silent logical flaws, and rigid (hard-coded) infrastructure.
 
-| Issue ID | File Name | Manifestation (The Error) | Mathematical / Logical Root Cause | Implemented Structural Correction | Git Commit Hash |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| 001 | `Code/data.py` | Validation accuracy is artificially high and untrustworthy. | The training array (`data_dict['train_images']`) was never truncated after extracting the validation split, causing 100% of the validation set to leak into the training environment. | Applied list slicing `[:val_start]` to explicitly isolate the training bounds from the validation boundaries. | 54844ed |
-| 002 | `Code/data.py` | `TensorDataset` throws a shape mismatch error during dataset instantiation. | `train_data` was truncated to prevent validation leakage, but `train_labels` was not, resulting in arrays of unequal lengths. | Applied list slicing `[:val_start]` to `train_labels` to match the data dimensions perfectly. | e5b2183 |
-| 003 | `Code/data.py` | Pipeline crashes with `FileNotFoundError` before training begins. | The dataloader dynamically appended a non-existent `_data` suffix to the file path constructor when resolving `.pt` files. | Removed `_data` from the f-string in `Path` resolution to match actual target filenames. | 6738177 |
-| 004 | `Code/data.py` | `VGG16` crashes during validation with `ValueError: Expected input batch_size`. | The dataset size was not perfectly divisible by the batch size, resulting in a dangling final batch that crashed BatchNorm. | Injected `drop_last=True` into the `train_loader` and `val_loader` instantiations to ensure consistent tensor shapes across all iterations. | 13b7991 |
-| 005 | `Code/trainer.py` | Loss fails to converge properly, explodes, or fluctuates wildly during training. | Gradients were not zeroed out between batches (`optimizer.zero_grad()` was missing). This caused gradients to accumulate infinitely across iterations, corrupting the parameter weight updates. | Injected `self.optimizer.zero_grad()` inside the training batch loop prior to the backward pass. | b25b403 |
-| 006 | `Code/trainer.py` | `RuntimeError: 0D or 1D target tensor expected` crashes the pipeline during loss calculation. | Target labels were loaded from the dataset as 2D column tensors `(N, 1)` and formatted as floats, which violates the strict 1D `int64` requirement of `nn.CrossEntropyLoss()`. | Appended `.squeeze().long()` to the label tensors in both the training and evaluation loops to flatten the dimensions and cast to integers. | 1cd9058 |
-| 007 | `trainer.py` | `RuntimeError` during forward pass due to weight/input channel dimension mismatches. | Feeding 3-channel RGB datasets into architectures initialized for 1-channel Grayscale datasets (or vice-versa) caused instant matrix multiplication failures. | Injected dynamic channel alignment logic using `images.mean(dim=1)` to collapse RGB data, and `images.repeat(1, 3, 1, 1)` to expand grayscale data. | 5e523a6 |
-| 008 | `Code/transfer.py`, `Code/trainer.py` | Script crashed with `NameError: name 'T' is not defined` and Validation Accuracy collapsed to ~4-16%. Severe distribution mismatch between training and validation evaluation. | A missing import for `torchvision.transforms` crashed the final test evaluation. Asymmetric Preprocessing: the training data was normalized in `train_one_epoch`, but the validation data was fed as raw pixels in the `evaluate` loop, causing a massive distribution mismatch. | Added `import torchvision.transforms as T` to `transfer.py`. Injected the identical `T.Normalize` constants into the `evaluate` function in `trainer.py` to ensure mathematical parity between training, validation, and testing data. | f863350 |
-| 009 | `models.py` | `ResNet18` network fails to learn and acts as a linear transformation. | Activation was hardcoded to `Identity` instead of ReLU; furthermore, `ResNet18.forward()` lacked a `return` statement, dropping the computational graph entirely. | Refactored model to accept dynamic activation functions via `getattr`, and added the missing `return` statement. | e5b2183 |
-| 010 | `Code/models.py` | `VGG16` initialization crashes with `NameError: name 'ConvBlock' is not defined`. | The architecture loop attempted to instantiate a custom convolutional helper class that was missing from the module scope. | Replaced the undefined `ConvBlock` reference with native, inline `nn.Conv2d`, `nn.BatchNorm2d`, and dynamic activation layers. | 5422aec |
-| 011 | `Code/models.py` | `AlexNet` crashes during the forward pass with a `RuntimeError` regarding matrix multiplication shapes (`16x3072` and `2048x1024`). | The flattened tensor output from the convolutional feature extractor collided with the hardcoded input constraint of the first fully connected layer, effectively breaking on any resolution other than exactly 64x64. | Injected `nn.AdaptiveAvgPool2d((4, 4))` to act as a dynamic dimensional bridge, ensuring spatial invariance regardless of input resolution. | cd4c5a6 |
-| 012 | `Code/train.py` | Pipeline execution crashes instantly with `ModuleNotFoundError: No module named 'Code'`. | Absolute imports utilizing the `Code.` prefix failed because executing the script directly sets the script's parent directory as the root path, breaking the module resolution. | Refactored absolute imports to direct local sibling imports (e.g., `from data import get_loaders`). | d47bb4d |
-| 013 | `train.py` | Severe underfitting; network acts as if it is making random guesses. | The dropout parameter for the classifier heads was sabotaged and hardcoded to a `drop_rate` of `0.99`, zeroing out the network's decision capacity. | Restored the `drop_rate` to a mathematically sound `0.5` baseline and passed it dynamically. | e5b2183 |
-| 014 | `run_benchmarks.py` | Rigid, hardcoded infrastructure prevents scalability, and manual configuration switching wastes engineering hours. | Model selection, hyperparameters, and dataset targeting were statically baked into individual functions, introducing human error and limiting evaluation. | Stripped all hardcoded constraints, implemented a centralized `config.json` payload, and engineered `run_benchmarks.py` to automate pipeline execution dynamically. | 789fc54 |
+---
+
+## Crashing code / runtime errors
+
+| # | File | How it manifests | Root cause | Fix implemented | Commit |
+|---|------|------------------|------------|-----------------|--------|
+| 1 | data.py | `FileNotFoundError` on startup — no dataset loads | The path was built as `f"{data}_data.pt"`, but the actual files are named `cells.pt`, `chest.pt`, etc. The `_data` suffix pointed at files that do not exist. | Changed the filename pattern to `f"{data}.pt"` so it matches the real dataset files. | `18b4060` |
+| 2 | data.py | `CrossEntropyLoss` throws a shape/target error on the first batch | Labels were loaded with shape `[N, 1]`, but `CrossEntropyLoss` expects targets of shape `[N]`. | Added `.squeeze(1)` to the train, validation, and test labels to drop the extra dimension. | `18b4060` |
+| 3 | models.py | Runtime crash inside `VGGBlock` — a conv receives the wrong number of input channels | The input-channel counter was not updated inside the block's loop, so later convs still expected the original channel count. | Added `current_in_channels = out_channels` at the end of the loop. | `ab5b1f8` |
+| 4 | models.py | Crash at the classifier — `Linear` receives an unexpected flattened size (VGG config-C tail) | The 1×1 conv in the config-C tail used `padding=1` instead of `padding=0`, changing the spatial size and the flattened length. | Set padding to 0 for the 1×1 conv. | `ab5b1f8` |
+| 5 | models.py | `ResNet18` returns `None`, crashing when the loss is computed | The final line of `ResNet18.forward` computed `self.classifier(out)` but did not `return` it. | Added the missing `return`. | `1ed7cb3` |
+| 6 | models.py | `AlexNet` first conv is hard-wired to 3 channels and crashes on the 1-channel datasets | First conv written as `Conv2d(3, ...)`, so grayscale datasets (chest, orgs) failed. | Changed to `Conv2d(in_channels, ...)`. | `2af69b8` |
+
+---
+
+## Silent logical flaws (runs, but the result is wrong)
+
+| # | File | How it manifests | Root cause | Fix implemented | Commit |
+|---|------|------------------|------------|-----------------|--------|
+| 7 | trainer.py | Loss explodes and the model never learns, with no error thrown | `optimizer.zero_grad()` was missing, so gradients accumulated across batches and produced huge, unstable updates. | Added `self.optimizer.zero_grad()` at the start of each batch. | `a314380` |
+| 8 | models.py | Models train but plateau at low accuracy (ResNet collapses toward linear) | The module-level activation was set to `"Identity"`, removing all nonlinearity. | Changed the default activation to `"ReLU"`. | `1ed7cb3` |
+| 9 | data.py | Validation accuracy is unrealistically high because it overlaps with training data | The training slice used the full `train_images` array while the last portion was also used for validation (a data leak). | Sliced training data with `[:val_start]` so train and validation do not overlap. | `5201509` |
+| 10 | trainer.py | Works, but shadows a Python built-in — a flagged anti-pattern | A running counter in `train_one_epoch` was named `sum`, shadowing the built-in. | Renamed the variable to `total`, matching `evaluate`. | `e8ab9df` |
+
+---
+
+## Rigid infrastructure / hard-coded values
+
+| # | File | How it manifests | Root cause | Fix implemented | Commit |
+|---|------|------------------|------------|-----------------|--------|
+| 11 | train.py | Dropout cannot be set from config, and the hard-coded value cripples learning | The model was built with `drop_rate=0.99` hard-coded; at 0.99 almost every neuron is dropped, and it was not config-driven. | Replaced the literal with `drop_rate=config["DROP_RATE"]` (set to 0.3). | `bc24608` |
+| 12 | models.py | `AlexNet` output is fixed to 11 classes and ignores its constructor arguments | The constructor took only `**kwargs`, and the classifier was hard-coded as `Linear(1024, 11)`. | Added explicit `in_channels` and `num_classes`, and changed the classifier to `Linear(1024, num_classes)`. | `2af69b8` |
+
+---
+
+## Reconstructed infrastructure (built from scratch, not a bug fix)
+
+| Item | File | Purpose |
+|------|------|---------|
+| Configuration registry | config.json | Single external file driving dataset, model, channels, classes, batch size, learning rate, epochs, and dropout, so the whole pipeline is controlled without editing code. |
+| Testing / evaluation framework | benchmark.py | Runs each model on the held-out test split and reports accuracy, precision, recall, and macro F1, and records efficiency metrics for the Green Initiative. |
+
+---
+
+## Note on commit hashes
+
+Each hash above points to the commit in which that fix was made or first appears. Several early fixes were grouped into the initial reconstruction commits (`Phase 1`, `Alter code`, `fine tune the model structure`), so a few bugs share a commit. Verify each hash on the repository before submission and adjust if a fix lives in a different commit.

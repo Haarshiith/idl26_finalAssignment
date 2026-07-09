@@ -1,71 +1,98 @@
 # MAI - IDL 2026 - Final Project Assignment
 
 # BioHealth Histology Pipeline Reconstitution
-**Course:** Introduction to Deep Learning (SS26) - Final Assignment  
-**Author:** Harshith Babu Prakash Babu
-**Matriculation Number:** 10001198
+
+**Course:** Introduction to Deep Learning (SS26) - Final Assignment 
+
+**Authors:** Harshith Babu Prakash Babu, Muhammad Talha Khan
+
+**Matriculation Number:** 10001198, 10013383
+
 **Program:** Master's in Artificial Intelligence, THWS
 
-## 📋 Project Overview
-This repository contains the successfully audited, repaired, and optimized deep learning pipeline for BioHealth Diagnostics Global. Following a critical system wipe, the pipeline has been reconstructed from legacy draft caches to train and evaluate core model registries (`AlexNet`, `VGG16`, `ResNet18`) across standardized diagnostic image profiles (`cells`, `chest`, `lesions`, `orgs` and `organs`).
+## Branch Purpose
 
-The architecture features dynamic channel alignment, tailored data normalization, strict regularization to combat overfitting, and a modular configuration system.
+This `development` branch contains the **Part 3: Data-Scarcity / Knowledge Transfer** work, committed separately from the reconstruction and Green Initiative deliverables on `main`, as required by the assignment brief.
 
----
+It builds directly on the audited pipeline and the `GreenNet` architecture established on `main`, adding a source-domain pre-training stage and a scarce-data fine-tuning framework for the 500-sample `organs` dataset.
 
-## 📁 Repository Structure
+## Repository Structure
+
 ```text
 ├── Code/
-│   ├── data.py             # Volatile tensor data loading & train/val splitting
-│   ├── models.py           # Deep learning model (AlexNet, VGG, ResNet, SlimResNet)
-│   ├── trainer.py          # Training, evaluation, and latency tracking
-│   ├── train.py            # Standard training and metric execution entry point
-│   └── transfer.py         # Knowledge Transfer framework
-├── data/                   # Target diagnostic datasets (.pt files) [Git ignored]
-├── config.json             # Execution configuration registry (automatically generated)
-├── run_benchmarks.py       # Automated multi-dataset benchmark execution suite
-├── AUDIT_LOG.md            # Technical inventory of code defects and engineering fixes
-├── REPORT.md               # Final consolidated benchmark performance report
-└── README.md               # Project documentation (This file)
+│   ├── data/                 # Target diagnostic datasets (.pt files) [Git ignored]
+│   ├── benchmark.py          # Automated multi-dataset benchmark execution suite
+│   ├── config.json           # Execution configuration registry
+│   ├── data.py               # Tensor data loading & train/val splitting
+│   ├── inspect_data.py       # Diagnostic data checking tool
+│   ├── models.py             # Deep learning models (AlexNet, VGG, ResNet, GreenNet)
+│   ├── pretrain.py           # Source-domain (orgs) pre-training script
+│   ├── train.py              # Standard training and metric execution entry point
+│   ├── trainer.py            # Training, evaluation, and latency tracking engine
+│   └── transfer.py           # Knowledge Transfer framework (orgs → organs)
+├── .gitignore                # Git exclusion rules
+├── AUDIT_LOG.md              # Technical inventory of code defects and engineering fixes
+├── README.md                 # Project documentation (This file)
+├── REPORT.md                 # Consolidated report, including the Data-Scarcity Post-Mortem
+├── requirements.txt          # Python environment dependencies
+└── results.csv               # Exported benchmark metrics output
 ```
 
 ## Getting Started
 
 ### 1. Prerequisites & Environment Setup
-Ensure you have Python 3.10+ installed. It is highly recommended to use a virtual environment:
+
+Ensure Python 3.10+ is installed. Build a clean virtual environment and load the dependencies:
 
 ```bash
-# Create and activate virtual environment
 python -m venv venv
-source venv/bin/activate #for Mac
-venv\Scripts\activate #for Windows
+source venv/bin/activate    # macOS / Linux
+venv\Scripts\activate       # Windows
 ```
 
-## Install required packages
-
+### Install dependencies
 ```
-pip install torch torchvision scikit-learn numpy
+pip install -r requirements.txt
 ```
 
 ### 2. Dataset Placement
-Download the pristine emergency back-up datasets and place them within a root directory named data/:
+Download the pristine emergency back-up datasets and place them within the nested data directory `data/`:
 
 ```bash
-mkdir data
+mkdir Code/data
 # Place cells.pt, chest.pt, lesions.pt, orgs.pt, and organs.pt into the data/ directory
 ```
 
-### 3. Running the Complete Benchmark Suite
-To replicate all final production runs across all datasets using their optimal architecture pairings under isolated GPU memory conditions, execute the automated orchestration runner:
+### 3. Running the Knowledge Transfer Pipeline
+
+The data-scarcity experiment runs in two stages. First, pre-train `GreenNet` on the larger `orgs` source domain:
 
 ```bash
-python run_benchmarks.py
+python Code/pretrain.py
 ```
 
-## Model Persistence & Performance Highlights
+This caches the learned source weights to `pretrained_orgs.pt`. Then fine-tune on the scarce `organs` target:
 
-**Automated Weight Caching & Checkpointing:** The pipeline utilizes dynamic checkpointing `(best_model.pth)` to automatically recover the highest-performing epoch prior to test-set evaluation, preventing overfitting degradation. To minimize redundant compute during the Data Scarcity experiment, the pipeline automatically caches Phase 1 orgs pre-training weights `(orgs_pretrained_base.pth)`. Subsequent execution runs bypass re-training, cutting execution runtime significantly.
+```bash
+python Code/transfer.py
+```
 
-**Dynamic Channel Alignment:** Data loaders dynamically adapt 1-channel (grayscale) and 3-channel (RGB) images to meet backbone architectural requirements seamlessly without hardcoding dimension limits.
+To reproduce the full benchmark suite (all datasets, all models, including the scratch-vs-transfer comparison):
 
-**Verified Performance:** All pipelines meet or surpass their target evaluation thresholds, and the custom SlimResNet architecture successfully proves the Green Initiative by slashing memory usage by 89%. For detailed performance matrices and engineering deep-dives, see `REPORT.md` and `AUDIT_LOG.md`.
+```bash
+python Code/benchmark.py
+```
+
+## Part 3 Highlights
+
+**Knowledge Transfer Adaptation:** `GreenNet` is first trained on the 15k-sample `orgs` dataset, whose 11-class grayscale task matches `organs` exactly. The learned feature extractor is cached and reloaded as the initialization for fine-tuning on the 500-sample target, so the scarce dataset never has to learn low-level features from scratch.
+
+**Scarce-Data Benchmark Matrix:** The runner tracks `organs` under both training states random initialization (from scratch) and transferred `orgs` features, logging test accuracy, macro F1, and best validation accuracy for each.
+
+**Weight Caching:** Source-domain weights are cached to `pretrained_orgs.pt`. Subsequent runs load the cache and skip Phase 1, avoiding redundant computation. Checkpointing (`best_model.pt`) recovers the best-validation epoch before test evaluation.
+
+**Reproducibility:** All runs use a fixed global seed (42) for consistency across executions.
+
+**Result:** Transfer learning clears the 40% mandate comfortably and beats training from scratch by **+13.25 accuracy points (67.70% vs 54.45%)** and **+16.54 macro F1 points (60.02 vs 43.48)**. The macro F1 gain is the more meaningful one, it shows the transferred features helped across all eleven classes, not just the common ones.
+
+(For the full quantitative analysis, training-curve discussion, and recommendations as more data arrives, see the Data-Scarcity Post-Mortem in `REPORT.md`.)

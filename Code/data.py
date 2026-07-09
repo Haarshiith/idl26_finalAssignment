@@ -8,30 +8,24 @@ from pathlib import Path
 from torch.utils.data import TensorDataset, DataLoader
 
 def get_loaders(data, data_path, batch_size, val_split=0.1):
-    d_path = Path(data_path) / f"{data}.pt"
-    data_dict = torch.load(d_path,  weights_only=True)
+    d_path = Path(data_path) / f"{data}.pt"            # FIX: was f"{data}_data.pt"
+    data_dict = torch.load(d_path)
 
-    # Calculate validation split boundaries
     total_samples = data_dict['train_images'].shape[0]
     val_size = int(total_samples * val_split)
     val_start = total_samples - val_size
 
-    g = torch.Generator().manual_seed(42)
-    perm = torch.randperm(total_samples, generator=g)
+    train_data = data_dict['train_images'][:val_start]               # FIX (leak): exclude val slice
+    train_labels = data_dict['train_labels'][:val_start].squeeze(1)  # FIX: [N,1] -> [N] [3 , 2 , 1] 
+    val_data = data_dict['train_images'][val_start:]
+    val_labels = data_dict['train_labels'][val_start:].squeeze(1)    # FIX: [N,1] -> [N]
 
-    # Segment training and validation partitions
-    train_data   = data_dict['train_images'][perm[:val_start]]
-    train_labels = data_dict['train_labels'][perm[:val_start]]
-    val_data     = data_dict['train_images'][perm[val_start:]]
-    val_labels   = data_dict['train_labels'][perm[val_start:]]
-    
     train_dataset = TensorDataset(train_data, train_labels)
     val_dataset = TensorDataset(val_data, val_labels)
-    test_dataset = TensorDataset(data_dict['test_images'], data_dict['test_labels'])
-    
-    # Configure loaders (drop_last prevents batch norm crashes on uneven final batches)    
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, drop_last=True)
-    val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, drop_last=True)
-    test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, drop_last=False)
-    
+    test_dataset = TensorDataset(data_dict['test_images'], data_dict['test_labels'].squeeze(1))  # FIX: [N,1] -> [N]
+
+    train_loader = DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=True)
+    val_loader = DataLoader(dataset=val_dataset, batch_size=batch_size, shuffle=False)
+    test_loader = DataLoader(dataset=test_dataset, batch_size=batch_size, shuffle=False)
+
     return train_loader, val_loader, test_loader
